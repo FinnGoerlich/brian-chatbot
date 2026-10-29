@@ -32,7 +32,7 @@ Rules: IDs are `Q` plus two or more digits, unique and never reused. Paths are r
 
 ## Brian/raw_transcripts/<YYYY-MM-DD>_<CODE>_<id8>.txt
 
-The same layout as the artifact's "Save transcript" button, plus the interviewee's name when sync can resolve it.
+The same layout as the artifact's "Save transcript" button, plus the interviewee's name when sync can resolve it. [scripts/write_transcript.py](scripts/write_transcript.py) writes it; use the script rather than formatting by hand.
 
 ```
 BRIAN CASE CONTEXT INTERVIEW - TRANSCRIPT
