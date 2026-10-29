@@ -89,6 +89,11 @@
   .chat-item .delete:hover { color: var(--danger); }
   .chat-item .delete svg { width: 16px; height: 16px; }
   .empty-list { color: var(--text-muted); font-size: 13px; padding: 6px 10px; }
+  .logout {
+    color: var(--text-muted); font-size: 13px; text-decoration: none;
+    padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); text-align: center;
+  }
+  .logout:hover { color: var(--text); }
 
   /* Main panel */
   .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -207,6 +212,7 @@
     <div class="brand"><span class="logo-slot"></span>Brian</div>
     <button class="new-chat" id="newChat">+ New chat</button>
     <ul class="chat-list" id="chatList"></ul>
+    <a class="logout" id="logout" href="/logout" hidden>Log out</a>
   </aside>
   <div class="scrim" id="scrim"></div>
 
@@ -464,6 +470,10 @@
         body: JSON.stringify({ messages: chat.messages }),
         signal: controller.signal,
       });
+      if (res.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
       if (!res.ok || !res.body) {
         throw new Error(res.status === 422
           ? "That message couldn't be sent (invalid request)."
@@ -554,6 +564,11 @@
   els.newChat.addEventListener("click", newChat);
   els.menuBtn.addEventListener("click", openSidebar);
   els.scrim.addEventListener("click", closeSidebar);
+
+  fetch("/api/config")
+    .then((r) => (r.ok ? r.json() : {}))
+    .then((cfg) => { if (cfg.login) $("logout").hidden = false; })
+    .catch(() => {});
 
   renderSidebar();
   renderThread();

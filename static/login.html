@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brian · Log in</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='%237CE3A6' d='M31 10C24 8 17 11 15 17C10 18 7 23 8 28C5 31 5 37 8 40C7 46 11 51 17 52C20 56 26 57 31 54Z'/%3E%3Cpath fill='%232E8B57' d='M33 10C40 8 47 11 49 17C54 18 57 23 56 28C59 31 59 37 56 40C57 46 53 51 47 52C44 56 38 57 33 54Z'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0B1A13;
+    --surface: #11261C;
+    --surface-2: #173527;
+    --accent: #2E8B57;
+    --accent-light: #7CE3A6;
+    --text: #E6F2EA;
+    --text-muted: #8FB3A0;
+    --border: rgba(124, 227, 166, 0.12);
+    --danger: #E58C8C;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  .card {
+    width: 100%; max-width: 360px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px 24px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .brand { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .brand svg { width: 56px; height: 56px; }
+  .brand h1 { margin: 0; font-size: 22px; font-weight: 650; }
+  label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--text-muted); }
+  input {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font: inherit;
+    padding: 10px 12px;
+  }
+  input:focus { outline: none; border-color: var(--accent-light); }
+  button {
+    background: var(--accent); color: var(--text);
+    border: none; border-radius: 10px;
+    padding: 10px 12px; font: inherit; font-weight: 600;
+    cursor: pointer; margin-top: 4px;
+  }
+  button:hover { filter: brightness(1.1); }
+  button:focus-visible { outline: 2px solid var(--accent-light); outline-offset: 2px; }
+  .error {
+    margin: 0; padding: 8px 12px;
+    background: rgba(229, 140, 140, 0.08);
+    border: 1px solid rgba(229, 140, 140, 0.35);
+    border-radius: 10px; font-size: 14px;
+  }
+</style>
+</head>
+<body>
+  <form class="card" method="post" action="/login">
+    <div class="brand">
+      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path fill="#7CE3A6" d="M31 10C24 8 17 11 15 17C10 18 7 23 8 28C5 31 5 37 8 40C7 46 11 51 17 52C20 56 26 57 31 54Z"/>
+        <path fill="#2E8B57" d="M33 10C40 8 47 11 49 17C54 18 57 23 56 28C59 31 59 37 56 40C57 46 53 51 47 52C44 56 38 57 33 54Z"/>
+        <g fill="none" stroke="#0B1A13" stroke-width="2.5" stroke-linecap="round">
+          <path d="M24 17C20 19 20 24 23 26"/><path d="M14 30C18 30 21 33 21 37"/>
+          <path d="M25 34C28 36 28 41 25 44"/><path d="M16 44C19 43 22 45 23 48"/>
+          <path d="M40 17C44 19 44 24 41 26"/><path d="M50 30C46 30 43 33 43 37"/>
+          <path d="M39 34C36 36 36 41 39 44"/><path d="M48 44C45 43 42 45 41 48"/>
+        </g>
+      </svg>
+      <h1>Log in to Brian</h1>
+    </div>
+    <!--ERROR-->
+    <label>Email
+      <input type="email" name="email" autocomplete="username" required autofocus>
+    </label>
+    <label>Password
+      <input type="password" name="password" autocomplete="current-password" required>
+    </label>
+    <button type="submit">Log in</button>
+  </form>
+</body>
+</html>
