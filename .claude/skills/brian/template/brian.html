@@ -1,0 +1,1077 @@
+<title>Brian</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Layout: fixed 260px case + interview list on the left, thread + composer on the right; sidebar becomes a drawer under 760px.
+     Single deliberate dark theme, per the Brian spec. */
+  :root {
+    --bg: #0B1A13;
+    --surface: #11261C;
+    --surface-2: #173527;
+    --accent: #2E8B57;
+    --accent-light: #7CE3A6;
+    --text: #E6F2EA;
+    --text-muted: #8FB3A0;
+    --border: rgba(124, 227, 166, 0.12);
+    --danger: #E58C8C;
+    --danger-bg: rgba(229, 140, 140, 0.08);
+    --danger-border: rgba(229, 140, 140, 0.35);
+    --scrim: rgba(0, 0, 0, 0.5);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, "SFMono-Regular", Menlo, monospace;
+    --sidebar-w: 260px;
+    --gutter-l: max(16px, env(safe-area-inset-left, 0px));
+    --gutter-r: max(16px, env(safe-area-inset-right, 0px));
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 var(--font);
+    display: flex;
+    overflow: hidden;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  :focus-visible { outline: 2px solid var(--accent-light); outline-offset: 2px; }
+
+  /* Sidebar */
+  .sidebar {
+    width: var(--sidebar-w);
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-block: 16px;
+    padding-left: var(--gutter-l);
+    padding-right: 12px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 6px 4px;
+    font-size: 20px; font-weight: 650; color: var(--accent-light);
+  }
+  .brand svg { width: 32px; height: 32px; }
+  .case-block {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 12px;
+    background: var(--bg);
+  }
+  .case-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+  .case-code { font-family: var(--mono); font-size: 14px; color: var(--accent-light); overflow-wrap: anywhere; }
+  .case-name { font-size: 13px; overflow-wrap: anywhere; }
+  .case-actions { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; }
+  .new-chat {
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-weight: 600;
+    text-align: left;
+  }
+  .new-chat:hover:not(:disabled) { filter: brightness(1.1); }
+  .new-chat:disabled { opacity: 0.45; }
+  .list-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); padding: 0 6px; }
+  .chat-list {
+    list-style: none; margin: 0; padding: 0;
+    overflow-y: auto; flex: 1; min-height: 0;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .chat-item {
+    display: flex; align-items: center; gap: 4px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    min-height: 40px;
+  }
+  .chat-item:hover { background: rgba(124, 227, 166, 0.06); }
+  .chat-item.active { background: var(--surface-2); border-color: var(--border); }
+  .chat-item .open {
+    flex: 1; min-width: 0;
+    background: none; border: none;
+    padding: 7px 10px;
+    text-align: left;
+    color: var(--text);
+    display: flex; flex-direction: column;
+  }
+  .chat-item .open .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-item .open .s { font-size: 12px; color: var(--text-muted); }
+  .chat-item .delete {
+    background: none; border: none;
+    padding: 6px 8px; margin-right: 4px;
+    color: var(--text-muted);
+    border-radius: 8px;
+    opacity: 0;
+    display: flex;
+  }
+  .chat-item:hover .delete, .chat-item.active .delete, .chat-item .delete:focus-visible { opacity: 1; }
+  .chat-item .delete:hover { color: var(--danger); }
+  .chat-item .delete svg { width: 16px; height: 16px; }
+  .chat-item.confirming { background: var(--danger-bg); border-color: var(--danger-border); }
+  .confirm-label { flex: 1; min-width: 0; padding: 0 10px; font-size: 13px; }
+  .confirm-btn {
+    border: none; border-radius: 8px; padding: 4px 10px; font-size: 13px; font-weight: 600;
+    background: transparent; color: var(--text-muted);
+  }
+  .confirm-btn.yes { background: var(--danger); color: var(--bg); margin-right: 2px; }
+  .empty-list { color: var(--text-muted); font-size: 13px; padding: 6px 10px; }
+  .store-note { color: var(--text-muted); font-size: 12px; padding: 0 6px; }
+
+  /* Main panel */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .topbar {
+    display: none;
+    align-items: center; gap: 10px;
+    padding-block: 10px;
+    padding-left: var(--gutter-l);
+    padding-right: var(--gutter-r);
+    border-bottom: 1px solid var(--border);
+  }
+  .menu-btn {
+    background: none; border: 1px solid var(--border);
+    border-radius: 10px; padding: 6px 8px; display: flex;
+  }
+  .menu-btn svg { width: 20px; height: 20px; }
+  .topbar .title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+  .banner {
+    margin: 12px var(--gutter-r) 0 16px;
+    padding: 8px 12px; border-radius: 10px; font-size: 13px;
+    background: var(--danger-bg); border: 1px solid var(--danger-border);
+  }
+
+  .thread {
+    flex: 1; overflow-y: auto;
+    padding-block: 24px;
+    padding-left: 16px;
+    padding-right: var(--gutter-r);
+  }
+  .thread-inner { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+  .msg { display: flex; gap: 10px; align-items: flex-start; min-width: 0; }
+  .msg.user { justify-content: flex-end; }
+  .avatar { width: 30px; height: 30px; flex-shrink: 0; margin-top: 2px; }
+  .bubble {
+    padding: 10px 14px;
+    border-radius: 14px;
+    max-width: min(620px, 85%);
+    min-width: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .msg.user .bubble { background: var(--accent); border-bottom-right-radius: 4px; }
+  .msg.assistant .bubble {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+  .msg.error .bubble { background: var(--danger-bg); border: 1px solid var(--danger-border); }
+  .msg.status .bubble { background: transparent; border: 1px dashed var(--border); color: var(--text-muted); }
+  .bubble .files { display: block; margin-top: 6px; font-size: 13px; opacity: 0.85; }
+  .thinking { color: var(--text-muted); }
+  .cursor {
+    display: inline-block;
+    width: 8px; height: 1.05em;
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    background: var(--accent-light);
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .cursor { animation: none; } }
+
+  .context-doc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    white-space: pre-wrap; overflow-wrap: anywhere;
+    font-size: 14px;
+  }
+  .context-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .context-head h2 { margin: 0; font-size: 18px; }
+  .context-head span { color: var(--text-muted); font-size: 13px; }
+
+  .empty-state {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 8px;
+    padding-block: 24px;
+    padding-left: var(--gutter-l);
+    padding-right: var(--gutter-r);
+  }
+  .empty-state svg { width: 72px; height: 72px; margin-bottom: 8px; }
+  .empty-state h1 { margin: 0; font-size: 26px; font-weight: 650; text-wrap: balance; }
+  .empty-state p { margin: 0; color: var(--text-muted); max-width: 48ch; }
+  .case-form { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 12px; width: 100%; max-width: 420px; }
+  .case-form input {
+    flex: 1 1 200px; min-width: 0;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+    color: var(--text); font: 15px var(--mono); padding: 10px 12px; text-transform: uppercase;
+  }
+  .case-form input::placeholder { text-transform: none; font-family: var(--font); color: var(--text-muted); }
+  .case-form input:focus { outline: none; border-color: var(--accent-light); }
+  .form-error { color: var(--danger) !important; font-size: 14px; }
+  .start-btn {
+    background: var(--accent); border: none; border-radius: 10px;
+    padding: 10px 18px; font-weight: 600;
+  }
+  .start-btn:hover:not(:disabled) { filter: brightness(1.1); }
+  .start-btn:disabled { opacity: 0.45; }
+  .link-btn {
+    background: none; border: none; padding: 0;
+    color: var(--accent-light); font-size: 12px; text-decoration: underline; text-underline-offset: 2px;
+  }
+
+  /* Composer */
+  .composer {
+    padding-block: 12px 18px;
+    padding-left: 16px;
+    padding-right: var(--gutter-r);
+  }
+  .chips { max-width: 760px; margin: 0 auto 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px;
+    padding: 4px 6px 4px 12px; font-size: 13px;
+  }
+  .chip .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .chip .x { background: none; border: none; color: var(--text-muted); padding: 0 6px; font-size: 15px; line-height: 1; }
+  .chip.busy { color: var(--text-muted); }
+  .composer-inner {
+    max-width: 760px; margin: 0 auto;
+    display: flex; gap: 8px; align-items: flex-end;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 8px;
+  }
+  .composer-inner:focus-within { border-color: var(--accent-light); }
+  .attach-btn {
+    background: none; border: none; color: var(--text-muted);
+    padding: 6px; border-radius: 8px; display: flex;
+  }
+  .attach-btn:hover:not(:disabled) { color: var(--accent-light); }
+  .attach-btn svg { width: 20px; height: 20px; }
+  textarea {
+    flex: 1; min-width: 0;
+    resize: none;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font: inherit;
+    padding: 6px 8px;
+    max-height: 200px;
+    outline: none;
+  }
+  textarea::placeholder { color: var(--text-muted); }
+  .send, .stop {
+    border: none; border-radius: 10px;
+    padding: 8px 14px; font-weight: 600;
+  }
+  .send { background: var(--accent); }
+  .send:disabled { opacity: 0.45; }
+  .stop { background: transparent; border: 1px solid var(--accent-light); color: var(--accent-light); }
+  .actions-row {
+    max-width: 760px; margin: 8px auto 0;
+    display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; justify-content: space-between;
+    font-size: 12px; color: var(--text-muted);
+  }
+  .actions-row .btns { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+  .finish-btn {
+    background: transparent; border: 1px solid var(--accent-light); color: var(--accent-light);
+    border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 600;
+  }
+  .finish-btn.ready { background: var(--accent-light); color: var(--bg); }
+  .finish-btn:disabled { opacity: 0.45; }
+
+  .scrim { display: none; }
+
+  @media (max-width: 760px) {
+    .sidebar {
+      position: fixed; inset: 0 auto 0 0; z-index: 20;
+      padding-top: max(16px, env(safe-area-inset-top, 0px));
+      padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+      transform: translateX(-100%);
+      transition: transform 0.2s ease;
+    }
+    body.sidebar-open .sidebar { transform: none; }
+    body.sidebar-open .scrim {
+      display: block; position: fixed; inset: 0; z-index: 10;
+      background: var(--scrim);
+    }
+    .topbar { display: flex; }
+    .thread { padding-block: 16px; padding-left: var(--gutter-l); }
+    .composer { padding-block: 8px 12px; padding-left: var(--gutter-l); }
+    .banner { margin-left: var(--gutter-l); }
+    .chat-item .delete { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) { .sidebar { transition: none; } }
+</style>
+
+<aside class="sidebar" id="sidebar">
+  <div class="brand"><span class="logo-slot"></span>Brian</div>
+  <div class="case-block" id="caseBlock" hidden>
+    <span class="case-label">Case</span>
+    <span class="case-code" id="caseCodeLabel"></span>
+    <span class="case-name" id="caseNameLabel"></span>
+    <div class="case-actions">
+      <button type="button" class="link-btn" id="contextBtn">View case context</button>
+      <button type="button" class="link-btn" id="changeCaseBtn">Change case</button>
+    </div>
+  </div>
+  <button class="new-chat" id="newChat" disabled>+ New interview</button>
+  <span class="list-label" id="listLabel" hidden>Interviews</span>
+  <ul class="chat-list" id="chatList"></ul>
+  <div class="store-note" id="storeNote"></div>
+</aside>
+<div class="scrim" id="scrim"></div>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" id="menuBtn" aria-label="Open interview list">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <span class="title" id="topTitle">Brian</span>
+  </div>
+  <div class="banner" id="banner" role="status" hidden></div>
+
+  <div class="empty-state" id="pickerView">
+    <span class="logo-slot"></span>
+    <h1>Hi, I'm Brian</h1>
+    <p>I collect the context of a closed case that its files don't capture. Enter the case code to open the case's interviews.</p>
+    <form class="case-form" id="caseForm">
+      <input id="caseInput" placeholder="Case code, e.g. DEMO-LIGHTHOUSE" autocomplete="off" spellcheck="false" aria-label="Case code">
+      <button type="submit" class="start-btn" id="openCaseBtn">Open case</button>
+    </form>
+    <p class="form-error" id="caseError" role="alert" hidden></p>
+  </div>
+
+  <div class="empty-state" id="caseView" hidden>
+    <span class="logo-slot"></span>
+    <h1 id="caseTitle"></h1>
+    <p id="caseSummary"></p>
+    <button type="button" class="start-btn" id="startBtn">Start a new interview</button>
+  </div>
+
+  <div class="thread" id="thread" hidden>
+    <div class="thread-inner" id="threadInner"></div>
+  </div>
+
+  <form class="composer" id="composer" hidden>
+    <div class="chips" id="chips" hidden></div>
+    <div class="composer-inner">
+      <button type="button" class="attach-btn" id="attachBtn" aria-label="Attach files" title="Attach files (PDF, images, .txt, .md, .csv, .json)" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5l-8.6 8.6a5.5 5.5 0 0 1-7.8-7.8l9.2-9.2a3.7 3.7 0 0 1 5.2 5.2l-9.2 9.2a1.8 1.8 0 0 1-2.6-2.6l8.5-8.5"/></svg>
+      </button>
+      <input type="file" id="fileInput" multiple hidden accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.txt,.md,.csv,.json">
+      <textarea id="input" rows="1" placeholder="Message Brian…" aria-label="Message"></textarea>
+      <button type="submit" class="send" id="sendBtn" disabled>Send</button>
+      <button type="button" class="stop" id="stopBtn" hidden>Stop</button>
+    </div>
+    <div class="actions-row">
+      <span>Brian answers with your own Claude account.</span>
+      <span class="btns">
+        <button type="button" class="link-btn" id="saveBtn" hidden>Save transcript (.txt)</button>
+        <button type="button" class="finish-btn" id="finishBtn" hidden>Finish &amp; update case context</button>
+      </span>
+    </div>
+  </form>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  // Brian as a Claude Artifact: a case-context interviewer. No backend, no API key.
+  // - `sample` asks Claude on the viewer's own account.
+  // - `db` holds each case under cases/<CODE> (questions + living context.md), its interviews under
+  //   cases/<CODE>/chats and uploaded files under cases/<CODE>/files. The /brian skill in Claude Code
+  //   seeds the questions and mirrors transcripts, files and context.md into the case SharePoint.
+  // - `assets` stores uploaded files; `downloads` saves a transcript.
+  const MODEL = "claude-sonnet-5-5";
+  const START_MESSAGE = "Hi Brian, let's start.";
+  const LAST_CASE_KEY = "brian.lastCase";
+  const MAX_INPUT_CHARS = 200000;    // the platform caps input at 256 KiB
+  const MAX_INLINE_TEXT = 30000;     // text files up to this size are given to Claude in full
+  const PERMANENT_ERRORS = new Set(["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"]);
+  const FILE_TYPES = {
+    pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp",
+    txt: "text/plain", md: "text/markdown", csv: "text/csv", json: "application/json",
+  };
+  const OFFICE = /\.(docx?|xlsx?|xlsm|pptx?|msg)$/i;
+
+  const LOGO_SVG = `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path fill="#7CE3A6" d="M31 10C24 8 17 11 15 17C10 18 7 23 8 28C5 31 5 37 8 40C7 46 11 51 17 52C20 56 26 57 31 54Z"/>
+    <path fill="#2E8B57" d="M33 10C40 8 47 11 49 17C54 18 57 23 56 28C59 31 59 37 56 40C57 46 53 51 47 52C44 56 38 57 33 54Z"/>
+    <g fill="none" stroke="#0B1A13" stroke-width="2.5" stroke-linecap="round">
+      <path d="M24 17C20 19 20 24 23 26"/><path d="M14 30C18 30 21 33 21 37"/>
+      <path d="M25 34C28 36 28 41 25 44"/><path d="M16 44C19 43 22 45 23 48"/>
+      <path d="M40 17C44 19 44 24 41 26"/><path d="M50 30C46 30 43 33 43 37"/>
+      <path d="M39 34C36 36 36 41 39 44"/><path d="M48 44C45 43 42 45 41 48"/>
+    </g>
+  </svg>`;
+  const TRASH_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg>`;
+
+  const $ = (id) => document.getElementById(id);
+  const els = {};
+  for (const id of ["sidebar", "caseBlock", "caseCodeLabel", "caseNameLabel", "contextBtn", "changeCaseBtn", "newChat",
+    "listLabel", "chatList", "storeNote", "scrim", "menuBtn", "topTitle", "banner", "pickerView", "caseForm", "caseInput",
+    "openCaseBtn", "caseError", "caseView", "caseTitle", "caseSummary", "startBtn", "thread", "threadInner", "composer",
+    "chips", "attachBtn", "fileInput", "input", "sendBtn", "stopBtn", "saveBtn", "finishBtn"]) els[id] = $(id);
+
+  document.querySelectorAll(".logo-slot").forEach((el) => { el.innerHTML = LOGO_SVG; });
+
+  const use = (name) => (window.claude && typeof window.claude.use === "function")
+    ? window.claude.use(name).catch(() => null)
+    : Promise.resolve(null);
+
+  // ---------- Helpers ----------
+  const pad = (n) => String(n).padStart(2, "0");
+  const day = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+  const stamp = (ms) => { const d = new Date(ms); return `${day(ms)} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const shortId = (id) => id.replace(/-/g, "").slice(0, 8);
+  const newId = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(16).slice(2));
+  const fill = (tpl, vars) => tpl.replace(/\{\{(\w+)\}\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
+  const kb = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB");
+  const storageGet = (k) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } };
+  const storageSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* per-viewer convenience only */ } };
+
+  function normaliseCode(raw) {
+    const code = String(raw || "").trim().toUpperCase().replace(/\s+/g, "-");
+    return /^[A-Z0-9_\-.~:@+]{1,60}$/.test(code) && code !== "." && code !== ".." ? code : "";
+  }
+
+  function cleanChat(id, c) {
+    if (!c || !Array.isArray(c.messages)) return null;
+    return {
+      id,
+      title: typeof c.title === "string" && c.title ? c.title : "Interview",
+      createdAt: Number(c.createdAt) || 0,
+      author: typeof c.author === "string" ? c.author : "",
+      contextMerged: !!c.contextMerged,
+      messages: c.messages
+        .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+        .map((m) => ({
+          role: m.role, content: m.content, at: Number(m.at) || 0,
+          files: Array.isArray(m.files) ? m.files.filter((f) => f && f.name).map((f) => ({
+            name: String(f.name), assetId: String(f.assetId || ""), contentType: String(f.contentType || ""),
+            sizeBytes: Number(f.sizeBytes) || 0, inline: typeof f.inline === "string" ? f.inline : "",
+          })) : [],
+        })),
+    };
+  }
+
+  // ---------- State ----------
+  let db = null, uid = null, sample = null, sampleLimits = null, downloads = null, assets = null;
+  let prompts = null;
+  let caseCode = "", caseDoc = null;
+  let chats = [];
+  const created = new Set();       // chat ids that already exist in the store
+  let currentId = null;
+  let view = "picker";             // picker | case | chat | context
+  let streaming = null;            // { chatId, controller }
+  let merging = false;
+  let confirmingId = null;
+  let pending = [];                // attachments for the next message
+  let sampleBlocked = false;
+
+  const currentChat = () => chats.find((c) => c.id === currentId) || null;
+
+  // ---------- Store writes (one at a time, in order) ----------
+  let writeChain = Promise.resolve();
+  function persist(task) {
+    const run = writeChain.then(task);
+    writeChain = run.catch((err) => {
+      console.warn("Could not save.", err);
+      els.storeNote.textContent = "Couldn't save your latest change. It stays on screen until you reload.";
+    });
+    return run;
+  }
+  const chatRef = (id) => db.doc(`cases/${caseCode}/chats/${id}`);
+
+  function saveChat(chat) {
+    const body = {
+      title: chat.title, createdAt: chat.createdAt, updatedAt: Date.now(), author: chat.author,
+      messages: chat.messages, contextMerged: false,
+    };
+    chat.contextMerged = false;
+    return persist(async () => {
+      if (created.has(chat.id)) await chatRef(chat.id).update(body);
+      else { await chatRef(chat.id).set(body); created.add(chat.id); }
+    });
+  }
+
+  // ---------- Rendering ----------
+  function setBanner(text) { els.banner.textContent = text; els.banner.hidden = !text; }
+
+  function renderSidebar() {
+    const open = !!caseDoc;
+    els.caseBlock.hidden = !open;
+    els.listLabel.hidden = !open;
+    els.newChat.disabled = !open || !!streaming || merging;
+    els.caseCodeLabel.textContent = caseCode;
+    els.caseNameLabel.textContent = caseDoc?.caseName || "";
+    els.chatList.replaceChildren();
+    if (!open) return;
+    const sorted = [...chats].sort((a, b) => b.createdAt - a.createdAt);
+    if (!sorted.length) {
+      const li = document.createElement("li");
+      li.className = "empty-list";
+      li.textContent = "No interviews yet";
+      els.chatList.append(li);
+    }
+    for (const chat of sorted) {
+      const li = document.createElement("li");
+      li.className = "chat-item" + (chat.id === currentId && view === "chat" ? " active" : "");
+      if (chat.id === confirmingId) {
+        li.classList.add("confirming");
+        const label = document.createElement("span");
+        label.className = "confirm-label";
+        label.textContent = "Delete for the whole team?";
+        const no = document.createElement("button");
+        no.className = "confirm-btn"; no.textContent = "Cancel";
+        no.addEventListener("click", () => { confirmingId = null; renderSidebar(); });
+        const yes = document.createElement("button");
+        yes.className = "confirm-btn yes"; yes.textContent = "Delete";
+        yes.addEventListener("click", () => deleteChat(chat.id));
+        li.append(label, no, yes);
+        els.chatList.append(li);
+        continue;
+      }
+      const openBtn = document.createElement("button");
+      openBtn.className = "open";
+      const t = document.createElement("span"); t.className = "t"; t.textContent = chat.title;
+      const s = document.createElement("span"); s.className = "s";
+      s.textContent = (chat.author && chat.author === uid ? "You" : "Team member") + " · " +
+        (chat.contextMerged ? "in case context" : "not yet in context");
+      openBtn.append(t, s);
+      openBtn.title = chat.title;
+      openBtn.addEventListener("click", () => selectChat(chat.id));
+      li.append(openBtn);
+      if (chat.author && chat.author === uid) {
+        const del = document.createElement("button");
+        del.className = "delete";
+        del.innerHTML = TRASH_SVG;
+        del.setAttribute("aria-label", "Delete interview: " + chat.title);
+        del.title = "Delete interview";
+        del.addEventListener("click", () => { confirmingId = chat.id; renderSidebar(); });
+        li.append(del);
+      }
+      els.chatList.append(li);
+    }
+  }
+
+  function messageEl(role, text, files) {
+    const row = document.createElement("div");
+    row.className = "msg " + role;
+    if (role !== "user") {
+      const av = document.createElement("span");
+      av.className = "avatar";
+      av.innerHTML = LOGO_SVG;
+      row.append(av);
+    }
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.textContent = text;
+    if (files && files.length) {
+      const f = document.createElement("span");
+      f.className = "files";
+      f.textContent = files.map((x) => "Attached: " + x.name).join("\n");
+      bubble.append(f);
+    }
+    row.append(bubble);
+    return { row, bubble };
+  }
+
+  function renderMain() {
+    const chat = currentChat();
+    els.pickerView.hidden = view !== "picker";
+    els.caseView.hidden = view !== "case";
+    els.thread.hidden = view !== "chat" && view !== "context";
+    els.composer.hidden = view !== "case" && view !== "chat";
+    els.topTitle.textContent = view === "chat" && chat ? chat.title : (caseCode || "Brian");
+
+    if (view === "case") {
+      els.caseTitle.textContent = caseDoc.caseName || caseCode;
+      const n = chats.length;
+      els.caseSummary.textContent = (n ? `${n} earlier interview${n === 1 ? "" : "s"}. ` : "No interviews yet. ") +
+        (caseDoc.contextUpdatedAt ? `The case context was last updated on ${day(caseDoc.contextUpdatedAt)}. ` : "") +
+        "Brian picks up where the team left off and only asks what is still open.";
+    }
+
+    els.threadInner.replaceChildren();
+    if (view === "context") {
+      const head = document.createElement("div");
+      head.className = "context-head";
+      const h = document.createElement("h2"); h.textContent = "Case context";
+      const s = document.createElement("span");
+      s.textContent = caseDoc.contextUpdatedAt ? "Last updated " + stamp(caseDoc.contextUpdatedAt) : "Not created yet";
+      head.append(h, s);
+      const doc = document.createElement("div");
+      doc.className = "context-doc";
+      doc.textContent = caseDoc.context || "No interview has been merged into the case context yet. Finish an interview with \"Finish & update case context\" to create it.";
+      els.threadInner.append(head, doc);
+    }
+    if (view === "chat" && chat) {
+      for (const m of chat.messages) els.threadInner.append(messageEl(m.role, m.content, m.files).row);
+      scrollToBottom(true);
+    }
+    updateComposer();
+    renderSidebar();
+  }
+
+  function isNearBottom() {
+    const t = els.thread;
+    return t.scrollHeight - t.scrollTop - t.clientHeight < 80;
+  }
+  function scrollToBottom(force) {
+    if (force || isNearBottom()) els.thread.scrollTop = els.thread.scrollHeight;
+  }
+
+  function updateComposer() {
+    const busy = !!streaming || merging;
+    const uploading = pending.some((p) => !p.assetId);
+    els.sendBtn.hidden = !!streaming;
+    els.stopBtn.hidden = !streaming;
+    els.input.disabled = sampleBlocked;
+    els.sendBtn.disabled = busy || sampleBlocked || !prompts || uploading || (!els.input.value.trim() && !pending.length);
+    els.startBtn.disabled = busy || sampleBlocked || !prompts;
+    els.attachBtn.hidden = !assets;
+    els.attachBtn.disabled = busy;
+    const chat = view === "chat" ? currentChat() : null;
+    const hasExchange = !!chat && chat.messages.some((m) => m.role === "assistant");
+    els.saveBtn.hidden = !downloads || !chat || !chat.messages.length || busy;
+    els.finishBtn.hidden = !hasExchange;
+    els.finishBtn.disabled = busy || sampleBlocked;
+    els.finishBtn.textContent = merging ? "Updating case context…" : (chat?.contextMerged ? "Case context is up to date" : "Finish & update case context");
+    if (chat?.contextMerged && !merging) els.finishBtn.disabled = true;
+    const lastReply = chat ? [...chat.messages].reverse().find((m) => m.role === "assistant") : null;
+    els.finishBtn.classList.toggle("ready", !!lastReply && lastReply.content.includes("CASE CONTEXT SUMMARY") && !chat.contextMerged);
+    renderChips();
+  }
+
+  function renderChips() {
+    els.chips.replaceChildren();
+    els.chips.hidden = !pending.length;
+    for (const p of pending) {
+      const chip = document.createElement("span");
+      chip.className = "chip" + (p.assetId ? "" : " busy");
+      const n = document.createElement("span"); n.className = "n";
+      n.textContent = p.assetId ? `${p.name} (${kb(p.sizeBytes)})` : `Uploading ${p.name}…`;
+      chip.append(n);
+      if (p.assetId) {
+        const x = document.createElement("button");
+        x.type = "button"; x.className = "x"; x.textContent = "×";
+        x.setAttribute("aria-label", "Remove " + p.name);
+        x.addEventListener("click", () => removePending(p));
+        chip.append(x);
+      }
+      els.chips.append(chip);
+    }
+  }
+
+  function autosize() {
+    els.input.style.height = "auto";
+    els.input.style.height = Math.min(els.input.scrollHeight, 200) + "px";
+  }
+
+  // ---------- Cases ----------
+  async function openCase(raw) {
+    els.caseError.hidden = true;
+    const code = normaliseCode(raw);
+    if (!code) return showCaseError("Enter a case code using letters, digits and dashes.");
+    els.openCaseBtn.disabled = true;
+    await dbReady;
+    els.openCaseBtn.disabled = false;
+    if (!db) return showCaseError("Brian can't reach the case data in this view. Open this page on claude.ai while signed in.");
+    els.openCaseBtn.disabled = true;
+    try {
+      const snap = await db.doc("cases/" + code).get();
+      if (!snap.exists) {
+        return showCaseError(`No case with the code ${code} is set up in Brian yet. Ask the case team to run "/brian review ${code}" in Claude Code.`);
+      }
+      const chatsSnap = await db.collection(`cases/${code}/chats`).get();
+      caseCode = code;
+      caseDoc = { ...snap.data() };
+      chats = chatsSnap.docs.map((d) => cleanChat(d.id, d.data())).filter(Boolean);
+      created.clear();
+      chats.forEach((c) => created.add(c.id));
+      currentId = null;
+      pending = [];
+      view = "case";
+      storageSet(LAST_CASE_KEY, code);
+      renderMain();
+    } catch (err) {
+      console.warn("Could not open case.", err);
+      showCaseError("Brian couldn't load this case just now. Try again in a moment.");
+    } finally {
+      els.openCaseBtn.disabled = false;
+    }
+  }
+
+  function showCaseError(text) {
+    els.caseError.textContent = text;
+    els.caseError.hidden = false;
+  }
+
+  function changeCase() {
+    if (streaming) streaming.controller.abort();
+    caseCode = ""; caseDoc = null; chats = []; currentId = null; pending = [];
+    view = "picker";
+    els.caseInput.value = storageGet(LAST_CASE_KEY);
+    renderMain();
+    closeSidebar();
+    els.caseInput.focus();
+  }
+
+  // ---------- Interviews ----------
+  function selectChat(id) {
+    if (streaming) streaming.controller.abort();
+    currentId = id;
+    confirmingId = null;
+    view = id ? "chat" : "case";
+    renderMain();
+    closeSidebar();
+    if (!sampleBlocked) els.input.focus();
+  }
+
+  function deleteChat(id) {
+    if (streaming && streaming.chatId === id) streaming.controller.abort();
+    chats = chats.filter((c) => c.id !== id);
+    confirmingId = null;
+    if (currentId === id) { currentId = null; view = "case"; }
+    persist(() => chatRef(id).delete());
+    renderMain();
+  }
+
+  // Claude sees the interviewer prompt (with the case's questions and context) as a leading turn,
+  // then the conversation, with attached files described and small text files given in full.
+  function turnText(m) {
+    let text = m.content;
+    for (const f of m.files || []) {
+      if (f.inline) text += `\n\n[Attached file: ${f.name}]\n<<<\n${f.inline}\n>>>`;
+      else if (f.contentType.startsWith("image/")) text += `\n\n[Attached image: ${f.name}]`;
+      else text += `\n\n[Attached file: ${f.name} (${f.contentType || "file"}, ${kb(f.sizeBytes)}). It is saved to the case files, but you cannot read its content in this chat.]`;
+    }
+    return text.trim() || "(no text)";
+  }
+
+  function buildInput(chat) {
+    const rules = fill(prompts.system, {
+      CASE_CODE: caseCode,
+      CASE_NAME: caseDoc.caseName || caseCode,
+      INTERVIEW_NUMBER: chats.filter((c) => c.createdAt <= chat.createdAt).length,
+      CASE_CONTEXT: caseDoc.context || "(empty: no interview has been merged yet)",
+      OPEN_QUESTIONS: caseDoc.questions || "(no open questions file)",
+    });
+    const turns = chat.messages.map((m) => ({ role: m.role, content: turnText(m) }));
+    let size = rules.length + turns.reduce((n, t) => n + t.content.length, 0);
+    while (turns.length > 1 && size > MAX_INPUT_CHARS) size -= turns.shift().content.length;
+    while (turns.length && turns[0].role !== "user") turns.shift();
+    return [{ role: "user", content: rules }, ...turns];
+  }
+
+  function errorCopy(code) {
+    switch (code) {
+      case "not_granted": return "Brian isn't allowed to use Claude in this view. Reload the page to be asked again.";
+      case "sampling_disabled": return "Claude isn't available for your account here.";
+      case "not_declared":
+      case "capability_disabled":
+      case "capability_removed": return "Claude isn't available in this view of the page.";
+      case "rate_limited": return "You've reached a usage or rate limit. Wait a little, then try again.";
+      case "session_expired": return "Your Claude session expired. Sign in again and reload the page.";
+      case "refused": return "Brian can't help with that request.";
+      case "prompt_too_large": return "This interview has grown too long. Finish it and start a new interview.";
+      case "empty_completion": return "Brian didn't write a reply. Try rephrasing your message.";
+      case "images_unavailable": return "Images can't be sent to Claude in this view. The file is still saved to the case.";
+      default: return "Brian couldn't reach Claude just now. Try again.";
+    }
+  }
+
+  function handleSampleError(e) {
+    const code = e && e.code;
+    if (PERMANENT_ERRORS.has(code)) {
+      sampleBlocked = true;
+      setBanner(errorCopy(code));
+    }
+    return code === "cancelled" ? null : errorCopy(code);
+  }
+
+  async function send() {
+    const text = els.input.value.trim();
+    if ((!text && !pending.length) || streaming || merging || sampleBlocked || !prompts || !caseDoc) return;
+    if (pending.some((p) => !p.assetId)) return;
+    if (!sample) return setBanner("Brian can only answer inside Claude. Open this page on claude.ai or in the Claude app.");
+
+    let chat = currentChat();
+    if (!chat) {
+      const now = Date.now();
+      chat = {
+        id: newId(), createdAt: now, author: uid || "", contextMerged: false, messages: [],
+        title: "Interview · " + new Date(now).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+      };
+      chats.push(chat);
+      currentId = chat.id;
+    }
+    const files = pending.map((p) => ({ name: p.name, assetId: p.assetId, contentType: p.contentType, sizeBytes: p.sizeBytes, inline: p.inline || "" }));
+    const images = pending.filter((p) => p.blob).map((p) => p.blob);
+    pending = [];
+    chat.messages.push({ role: "user", content: text, at: Date.now(), files });
+    saveChat(chat);
+    for (const f of files) {
+      persist(() => db.doc(`cases/${caseCode}/files/${f.assetId}`).set({
+        name: f.name, contentType: f.contentType, sizeBytes: f.sizeBytes, chatId: chat.id,
+        uploadedAt: Date.now(), uploadedBy: uid || "",
+      }));
+    }
+
+    els.input.value = "";
+    autosize();
+    view = "chat";
+    renderMain();
+
+    const { row, bubble } = messageEl("assistant", "");
+    const textNode = document.createElement("span");
+    textNode.className = "thinking";
+    textNode.textContent = "Thinking…";
+    const cursor = document.createElement("span");
+    cursor.className = "cursor";
+    bubble.append(textNode, cursor);
+    els.threadInner.append(row);
+    scrollToBottom(true);
+
+    const controller = new AbortController();
+    streaming = { chatId: chat.id, controller };
+    updateComposer();
+    renderSidebar();
+
+    let reply = "";
+    let errorMessage = null;
+    let note = null;
+    const opts = {
+      model: MODEL, modelTier: "default", cache: false, signal: controller.signal,
+      onText: ({ text: whole }) => {
+        reply = whole;
+        textNode.className = "";
+        textNode.textContent = whole;
+        scrollToBottom(false);
+      },
+    };
+    if (images.length && sampleLimits?.images) opts.images = images.slice(0, sampleLimits.images.maxCount);
+    try {
+      const result = await sample(buildInput(chat), opts);
+      reply = result.text;
+      if (result.truncated) note = "Brian's reply was cut short. Ask for less at a time.";
+    } catch (e) {
+      reply = e && e.code === "refused" ? "" : (e && typeof e.text === "string" ? e.text : reply);
+      errorMessage = handleSampleError(e);
+    } finally {
+      cursor.remove();
+      streaming = null;
+    }
+
+    const target = chats.find((c) => c.id === chat.id);
+    if (reply.trim() && target) {
+      textNode.textContent = reply;
+      textNode.className = "";
+      target.messages.push({ role: "assistant", content: reply, at: Date.now(), files: [] });
+      saveChat(target);
+    } else {
+      row.remove();
+    }
+    const shown = errorMessage || note;
+    if (shown && currentId === chat.id && view === "chat") {
+      els.threadInner.append(messageEl("error", shown).row);
+      scrollToBottom(true);
+    }
+    updateComposer();
+    renderSidebar();
+  }
+
+  // ---------- Case context ----------
+  function transcriptBody(chat) {
+    const out = [];
+    for (const m of chat.messages) {
+      out.push(`[${m.role === "user" ? "Interviewee" : "Brian"}]${m.at ? " " + stamp(m.at) : ""}`);
+      out.push(m.content || "(no text)");
+      for (const f of m.files || []) out.push(`Attached: ${f.name} (asset ${f.assetId})`);
+      out.push("");
+    }
+    return out.join("\n");
+  }
+
+  async function finishChat() {
+    const chat = currentChat();
+    if (!chat || streaming || merging || sampleBlocked || !sample || !prompts) return;
+    merging = true;
+    updateComposer();
+    renderSidebar();
+    const status = messageEl("status", "Updating the case context with this interview…");
+    els.threadInner.append(status.row);
+    scrollToBottom(true);
+    let outcome;
+    try {
+      await writeChain;                                         // make sure the interview itself is saved first
+      const fresh = await db.doc("cases/" + caseCode).get();
+      const current = fresh.exists ? fresh.data() : {};
+      const merged = new Set(Array.isArray(current.mergedChats) ? current.mergedChats : []);
+      merged.add(chat.id);
+      const prompt = fill(prompts.context, {
+        CASE_CODE: caseCode,
+        CASE_NAME: current.caseName || caseCode,
+        TODAY: day(Date.now()),
+        INTERVIEW_ID: shortId(chat.id),
+        INTERVIEW_DATE: day(chat.createdAt),
+        INTERVIEWS_MERGED: merged.size,
+        CURRENT_CONTEXT: current.context || "(empty: this is the first interview merged into the case context)",
+        OPEN_QUESTIONS: current.questions || "(no open questions file)",
+        TRANSCRIPT: transcriptBody(chat),
+      });
+      if (prompt.length > MAX_INPUT_CHARS) throw { code: "prompt_too_large" };
+      const result = await sample(prompt, { model: MODEL, modelTier: "default", cache: false });
+      const context = result.text.replace(/^```(?:markdown|md)?\s*\n/, "").replace(/\n```\s*$/, "").trim();
+      const now = Date.now();
+      await persist(() => db.doc("cases/" + caseCode).update({ context, contextUpdatedAt: now, mergedChats: [...merged] }));
+      await persist(() => chatRef(chat.id).update({ contextMerged: true, contextMergedAt: now }));
+      caseDoc = { ...caseDoc, context, contextUpdatedAt: now, mergedChats: [...merged] };
+      chat.contextMerged = true;
+      outcome = "The case context now includes this interview. Claude Code copies it to the case SharePoint at the next sync.";
+    } catch (e) {
+      outcome = (e && e.code ? handleSampleError(e) : null) || "Brian couldn't update the case context. Try again in a moment.";
+    } finally {
+      merging = false;
+    }
+    status.row.remove();
+    if (currentId === chat.id && view === "chat") {
+      els.threadInner.append(messageEl(chat.contextMerged ? "status" : "error", outcome).row);
+      scrollToBottom(true);
+    }
+    updateComposer();
+    renderSidebar();
+  }
+
+  // ---------- Transcript download ----------
+  function transcriptText(chat) {
+    return [
+      "BRIAN CASE CONTEXT INTERVIEW - TRANSCRIPT",
+      "Case code: " + caseCode,
+      "Case: " + (caseDoc?.caseName || caseCode),
+      "Interview: " + shortId(chat.id),
+      "Interview started: " + stamp(chat.createdAt),
+      "Transcript saved: " + stamp(Date.now()),
+      "Messages: " + chat.messages.length,
+      "",
+      "Speakers: \"Brian\" is the AI interviewer; \"Interviewee\" is the case team member.",
+      "Each settled question ends with a \"Recorded for Qnn:\" line.",
+      "",
+      "=".repeat(60),
+      "",
+      transcriptBody(chat),
+    ].join("\n");
+  }
+
+  async function saveTranscript() {
+    const chat = currentChat();
+    if (!downloads || !chat || !chat.messages.length) return;
+    const filename = `${day(chat.createdAt)}_${caseCode}_${shortId(chat.id)}.txt`;
+    try {
+      await downloads.save({ filename, data: transcriptText(chat) });
+    } catch (e) {
+      if (e && e.code === "declined") return;
+      setBanner(e && e.code === "rate_limited" ? "A save is already waiting for your confirmation." : "The transcript couldn't be saved in this view.");
+    }
+  }
+
+  // ---------- Attachments ----------
+  async function addFiles(fileList) {
+    if (!assets) return;
+    for (const file of [...fileList]) {
+      const ext = (file.name.split(".").pop() || "").toLowerCase();
+      if (OFFICE.test(file.name)) { setBanner(`${file.name}: Word, Excel, PowerPoint and Outlook files can't be uploaded here. Save it as PDF, or put it straight into the case SharePoint.`); continue; }
+      const type = FILE_TYPES[ext];
+      if (!type) { setBanner(`${file.name}: this file type can't be uploaded. Use PDF, an image, or a .txt, .md, .csv or .json file.`); continue; }
+      const item = { name: file.name, contentType: type, sizeBytes: file.size, assetId: "", inline: "", blob: null };
+      pending.push(item);
+      updateComposer();
+      try {
+        const res = await assets.upload(file, { type });
+        item.assetId = res.id;
+        item.sizeBytes = res.sizeBytes;
+        if (type.startsWith("text/") || type === "application/json") {
+          const text = await file.text();
+          if (text.length <= MAX_INLINE_TEXT) item.inline = text;
+        }
+        if (type.startsWith("image/") && sampleLimits?.images) item.blob = file;
+      } catch (e) {
+        pending = pending.filter((p) => p !== item);
+        const code = e && e.code;
+        setBanner(code === "too_large" ? `${file.name} is larger than 20 MB.`
+          : code === "unsupported_type" ? `${file.name}: this file type can't be uploaded.`
+          : code === "quota_or_state" ? "The artifact's file storage is full."
+          : `${file.name} couldn't be uploaded. Try again.`);
+      }
+      updateComposer();
+    }
+  }
+
+  function removePending(item) {
+    pending = pending.filter((p) => p !== item);
+    if (assets && item.assetId) assets.delete(item.assetId).catch(() => {});
+    updateComposer();
+  }
+
+  function openSidebar() { document.body.classList.add("sidebar-open"); }
+  function closeSidebar() { document.body.classList.remove("sidebar-open"); }
+
+  // ---------- Events ----------
+  els.caseForm.addEventListener("submit", (e) => { e.preventDefault(); openCase(els.caseInput.value); });
+  els.composer.addEventListener("submit", (e) => { e.preventDefault(); send(); });
+  els.input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
+  });
+  els.input.addEventListener("input", () => { autosize(); updateComposer(); });
+  els.stopBtn.addEventListener("click", () => { if (streaming) streaming.controller.abort(); });
+  els.newChat.addEventListener("click", () => selectChat(null));
+  els.startBtn.addEventListener("click", () => { els.input.value = START_MESSAGE; send(); });
+  els.saveBtn.addEventListener("click", saveTranscript);
+  els.finishBtn.addEventListener("click", finishChat);
+  els.contextBtn.addEventListener("click", () => {
+    if (streaming) streaming.controller.abort();
+    view = "context"; currentId = null; renderMain(); closeSidebar();
+  });
+  els.changeCaseBtn.addEventListener("click", changeCase);
+  els.attachBtn.addEventListener("click", () => els.fileInput.click());
+  els.fileInput.addEventListener("change", () => { addFiles(els.fileInput.files); els.fileInput.value = ""; });
+  els.menuBtn.addEventListener("click", openSidebar);
+  els.scrim.addEventListener("click", closeSidebar);
+
+  // ---------- Start ----------
+  els.caseInput.value = storageGet(LAST_CASE_KEY);
+  renderMain();
+  els.caseInput.focus();
+
+  Promise.all([
+    fetch("system_prompt.txt").then((r) => (r.ok ? r.text() : Promise.reject(r.status))),
+    fetch("context_prompt.txt").then((r) => (r.ok ? r.text() : Promise.reject(r.status))),
+  ]).then(([system, context]) => { prompts = { system, context }; updateComposer(); })
+    .catch((err) => { console.warn("Could not load prompts.", err); setBanner("Brian couldn't load its instructions. Reload the page to try again."); });
+
+  use("sample").then(async (s) => {
+    sample = s;
+    if (!s) return setBanner("Brian can only answer inside Claude. Open this page on claude.ai or in the Claude app.");
+    sampleLimits = await s.limits().catch(() => null);
+  });
+  use("downloads").then((d) => { downloads = d; updateComposer(); });
+  use("assets").then((a) => { assets = a; updateComposer(); });
+  const dbReady = Promise.all([use("db"), use("user")]).then(async ([d, u]) => {
+    db = d;
+    try { uid = u ? await u.id() : null; } catch { uid = null; }
+    els.storeNote.textContent = d ? "Interviews are shared with everyone who can open this page." : "";
+  });
+})();
+</script>

@@ -1,0 +1,61 @@
+You maintain context.md, the living record of what is known about a closed consulting case. It is stored in the case SharePoint and will be used months or years from now, together with the case files and interview transcripts, to answer questions about the case. Your task: merge one new interview into the current context.md and return the complete updated file.
+
+Case: {{CASE_NAME}} (case code {{CASE_CODE}})
+Today: {{TODAY}}
+New interview: {{INTERVIEW_ID}}, held on {{INTERVIEW_DATE}}
+Interviews merged after this one: {{INTERVIEWS_MERGED}}
+
+Rules
+1. Keep everything in the current context that the new interview does not change. Never drop a question, an answer, a source or a change-log entry.
+2. Add what the interview settled, using the "Recorded for Qnn:" lines and the closing "CASE CONTEXT SUMMARY" as the main evidence, and the rest of the transcript for detail. If the interview corrects earlier information, update it and say in the answer what changed and why.
+3. If the interview contradicts an earlier interview and the person did not resolve it, keep both statements with their sources and set the status to "Conflicting".
+4. Record only what the transcript says. Never invent or infer facts, names, numbers or dates.
+5. Be specific: exact document names, numbers with units, dates, roles. Spell out abbreviations once.
+6. Statuses: Settled, Partly answered, Conflicting, Unknown, Not yet asked. Every question in the open questions file appears exactly once, in ID order.
+7. If the current context is empty, create the file from the structure below, with every question that the interview did not cover set to "Not yet asked".
+8. Return only the Markdown content of context.md, without a code fence and without any text before or after it.
+
+Structure
+
+# Case context: {{CASE_NAME}} ({{CASE_CODE}})
+
+Last updated: {{TODAY}} · Interviews merged: {{INTERVIEWS_MERGED}}
+
+## Status
+Settled: n · Partly answered: n · Conflicting: n · Unknown: n · Not yet asked: n
+
+## Questions
+
+### Q01: <the question in a few words>
+- Status: <status>
+- Answer: <what is known, or "Not yet asked">
+- Evidence: <files and roles or people that support it>
+- Who else may know: <if unknown or partly answered>
+- Sources: Interview <id> (<date>)[, Interview <id> (<date>)]
+
+(one section per question, in ID order)
+
+## Additional context
+- <information volunteered in interviews that fits no question, with its source interview>
+
+## Follow-up actions
+- <actions people mentioned, with owner if given, and source interview>
+
+## Files attached in interviews
+- <file name>: <what it shows> (Interview <id>)
+
+## Change log
+- {{TODAY}}: Interview {{INTERVIEW_ID}} merged. <one line on what changed>
+(keep all earlier entries below the newest one)
+
+<open_questions>
+{{OPEN_QUESTIONS}}
+</open_questions>
+
+<current_context>
+{{CURRENT_CONTEXT}}
+</current_context>
+
+<new_interview_transcript>
+{{TRANSCRIPT}}
+</new_interview_transcript>
