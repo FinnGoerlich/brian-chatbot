@@ -18,7 +18,7 @@ Rules
 6. Keep document states apart: reference captured, received in Brian, content reviewed, reuse permission confirmed, stored in SharePoint.
 7. If the interview contradicts the current context and the person did not resolve it, keep both accounts with their sources and mark the item "Conflicting".
 8. Every question in the open questions file appears exactly once under "Open questions", in ID order, with one status: Settled, Partly answered, Conflicting, Unknown, Not yet asked.
-9. The "Case card" section stays short (about 1,500 characters at most) and states only what the rest of the file supports. Practice area is the most important field for matching: name it plainly (for example "Procurement", "PMO & value capture", "Pricing").
+9. The "Case card" section stays short (about 1,500 characters at most) and states only what the rest of the file supports. Functional area is the most important field for matching: name it plainly (for example "Procurement", "PMO & value capture", "Pricing"). Industry is shown as the practice area: one short name (for example "Logistics", "Chemicals").
 10. Every statement in Outcomes, Procurement know-how and Key documents ends with its source: (Interview <id>) and/or (file: <path>).
 11. If the current context is empty, create the file from the structure below.
 12. Return only the Markdown content of context.md, without a code fence and without any text before or after it.
@@ -32,7 +32,7 @@ Last updated: {{TODAY}} · Interviews merged: {{INTERVIEWS_MERGED}}
 ## Case card
 - Client:
 - Industry:
-- Practice area:
+- Functional area:
 - Geography:
 - Period:
 - Case type:

@@ -52,7 +52,7 @@ The blocks are a coverage map, not four mandatory questionnaires. No asset quota
 |---|---|---|
 | Debrief ("Get asked") | Brian library artifact, `interview_prompt.txt` | The skill's interview, adapted: case code instead of "which project", open questions and earlier debriefs as the gap map, real elapsed time, file attachments, a "# Project knowledge record" at the close |
 | Living case context | `context_prompt.txt`, `card_prompt.txt` | "Finish & update case context" merges the record into the case's context.md (four blocks, open questions, gaps, change log) and refreshes its case card |
-| Brian Ask | Same artifact, `ask_prompt.txt` | Overview of all cases, matching a new case to past ones (practice area first), one case in depth, lessons across cases; reads case contexts and file digests on demand, and opens original SharePoint files (specific slides, sheets or pages, guided by the context) through the asker's Microsoft 365 connector |
+| Brian Ask | Same artifact, `ask_prompt.txt` | A large question field above the case cards, which filter by functional area and practice area (industry); overview of all cases, matching a new case to past ones (functional area first), one case in depth, lessons across cases; reads case contexts and file digests on demand, and opens original SharePoint files (specific slides, sheets or pages, guided by the context) through the asker's Microsoft 365 connector |
 | SharePoint review and sync | Claude Code `brian` skill | Reads the case SharePoint into open questions, a first case card and file digests; copies transcripts, attached files and context.md back into the case's `Brian/` folder |
 
 ### 6. Demo scope and expansion potential
@@ -67,7 +67,7 @@ Label a demonstration as working, simulated or planned. The demo cases in the li
 
 ### 7. Pilot and rollout decisions
 
-- **Decided for the demo:** Brian Ask is open to every case team that might want context; client names may show; matching starts with practice area; Brian Ask may open case file digests when a context isn't enough; any case team member can run a debrief and the record needs no approval before it reaches Brian Ask.
+- **Decided for the demo:** Brian Ask is open to every case team that might want context; client names may show; matching starts with functional area (Procurement, Pricing, ...); case cards can be filtered by functional area and by practice area (the client's industry); Brian Ask may open case file digests when a context isn't enough; any case team member can run a debrief and the record needs no approval before it reaches Brian Ask.
 - **Still to confirm:** mandatory versus optional fields, block priorities, target duration, follow-up depth and default project versus workstream coverage. Keep current navigation defaults provisional.
 - **Set up the deployment:** confirm with project leadership that AI tool use is approved per client; identify the skill owner, the case teams the library is shared with, retention rules and the final record format.
 - **Test the actual behavior:** run acceptance scenarios, including an ambiguous metric, a late time warning, a restricted asset and an unavailable integration. Record pass, fail or not tested.

@@ -69,7 +69,7 @@ Written by Brian when a debrief is merged and mirrored by `/brian sync`. Never e
 
 | Section | Holds |
 |---|---|
-| Case card | Client, industry, practice area, geography, period, case type, summary, key results, good to ask about |
+| Case card | Client, industry, functional area, geography, period, case type, summary, key results, good to ask about |
 | Project context | Mandate and scope; people interviewed with their role and knowledge boundary |
 | Outcomes | What changed, with definition, savings stage, baseline, currency, period and evidence basis; open at handover |
 | Procurement know-how | Lessons: situation, action and rationale, reported effect, prerequisites and limits to reuse |
@@ -102,7 +102,7 @@ The structured version of the context's case card, shown in Brian Ask and used t
 }
 ```
 
-`area` is the practice area and the first matching criterion: keep the names consistent across cases ("Procurement", "PMO & value capture", "Pricing", ...).
+`area` is the functional area and the first matching criterion; `industry` is shown as the practice area. Brian Ask filters its case cards by both, so keep the names short and consistent across cases ("Procurement", "PMO & value capture", "Pricing", ...; "Logistics", "Chemicals", "Retail", ...).
 
 ## SharePoint location (`sharepoint` in `cases/<CODE>`)
 

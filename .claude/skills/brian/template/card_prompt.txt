@@ -1,10 +1,11 @@
-Extract the case card for {{CASE_NAME}} ({{CASE_CODE}}) from its case context below. Brian Ask shows the card in its case overview and uses it to match a new case to past ones, practice area first.
+Extract the case card for {{CASE_NAME}} ({{CASE_CODE}}) from its case context below. Brian Ask shows the card in its case overview and uses it to match a new case to past ones, functional area first. Its filters are functional area (area) and practice area (industry).
 
 Reply with only a JSON object in this shape, and no other text:
 {"client": "", "industry": "", "area": "", "geography": "", "period": "", "caseType": "", "summary": "", "keyResults": [], "lessons": [], "documents": [], "goodToAskAbout": [], "completeness": {"settled": 0, "total": 0}}
 
 Fields
-- area: the practice area, for example "Procurement", "PMO & value capture", "Pricing". One short name.
+- area: the functional area, for example "Procurement", "PMO & value capture", "Pricing". One short name.
+- industry: the client's industry, shown as the practice area, for example "Logistics", "Chemicals", "Retail". One short name.
 - period: for example "Mar 2026 – Sep 2026".
 - caseType: a few words, for example "Indirect cost reduction".
 - summary: 2-4 sentences, at most 500 characters: the problem, the approach, the outcome.
