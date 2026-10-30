@@ -1,0 +1,24 @@
+Extract the case card for {{CASE_NAME}} ({{CASE_CODE}}) from its case context below. Brian Ask shows the card in its case overview and uses it to match a new case to past ones, practice area first.
+
+Reply with only a JSON object in this shape, and no other text:
+{"client": "", "industry": "", "area": "", "geography": "", "period": "", "caseType": "", "summary": "", "keyResults": [], "lessons": [], "documents": [], "goodToAskAbout": [], "completeness": {"settled": 0, "total": 0}}
+
+Fields
+- area: the practice area, for example "Procurement", "PMO & value capture", "Pricing". One short name.
+- period: for example "Mar 2026 – Sep 2026".
+- caseType: a few words, for example "Indirect cost reduction".
+- summary: 2-4 sentences, at most 500 characters: the problem, the approach, the outcome.
+- keyResults: up to 3 short strings, each with its stage and evidence basis, for example "EUR 3.2M negotiated savings on IT spend (reported)".
+- lessons: up to 3 short, actionable lessons.
+- documents: up to 3 short strings: a document worth reusing and why.
+- goodToAskAbout: 3 to 6 short topics this case can answer.
+- completeness: from the "Open questions" section, settled = questions with status Settled, total = all questions.
+
+Rules: use only what the context says; write "" or [] where it says nothing; keep numbers, currencies, periods and savings stages exactly as written. Keep values from the current card that the context neither changes nor contradicts.
+
+Current card:
+{{CURRENT_CARD}}
+
+<case_context>
+{{CONTEXT}}
+</case_context>

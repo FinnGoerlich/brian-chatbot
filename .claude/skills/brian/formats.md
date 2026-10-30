@@ -46,7 +46,7 @@ Messages: <n>
 Merged into case context: <yes, on YYYY-MM-DD | no>
 
 Speakers: "Brian" is the AI interviewer; "Interviewee" is the case team member.
-Each settled question ends with a "Recorded for Qnn:" line.
+The interview closes with a "# Project knowledge record"; settled open questions have a "Recorded for Qnn:" line.
 
 ============================================================
 
@@ -64,7 +64,59 @@ Times are local time. Write message text exactly as stored; don't summarize or c
 
 ## Brian/context.md
 
-Written by Brian when an interview is merged (structure in [template/context_prompt.txt](template/context_prompt.txt)) and mirrored by `/brian sync`. Never edit it by hand.
+Written by Brian when a debrief is merged and mirrored by `/brian sync`. Never edit it by hand. The full structure and merge rules are in [template/context_prompt.txt](template/context_prompt.txt); in short:
+
+| Section | Holds |
+|---|---|
+| Case card | Client, industry, practice area, geography, period, case type, summary, key results, good to ask about |
+| Project context | Mandate and scope; people interviewed with their role and knowledge boundary |
+| Outcomes | What changed, with definition, savings stage, baseline, currency, period and evidence basis; open at handover |
+| Procurement know-how | Lessons: situation, action and rationale, reported effect, prerequisites and limits to reuse |
+| Key documents | Evidence or reuse purpose, useful component, location or owner, status, sharing needs |
+| Open questions | Every question from open_questions.txt with status, answer, who else may know |
+| Gaps and follow-up actions | Unknowns, conflicts, agreed next steps |
+| Change log | One line per merge or consolidation |
+
+Every statement in Outcomes, Procurement know-how and Key documents names its source: an interview id and/or a file path. Target length: up to about 40,000 characters.
+
+## Case card (`card` in `cases/<CODE>`)
+
+The structured version of the context's case card, shown in Brian Ask and used to match new cases. Brian updates it after each merge ([template/card_prompt.txt](template/card_prompt.txt)); `/brian review` writes the first one from the files.
+
+```json
+{
+  "client": "Nordwerk Logistics AG",
+  "industry": "Logistics",
+  "area": "Procurement",
+  "geography": "Germany",
+  "period": "Mar 2026 – Sep 2026",
+  "caseType": "Indirect cost reduction",
+  "summary": "2-4 sentences, at most 500 characters.",
+  "keyResults": ["up to 3, each with stage and evidence basis"],
+  "lessons": ["up to 3"],
+  "documents": ["up to 3: document and why it's worth reusing"],
+  "goodToAskAbout": ["3 to 6 topics"],
+  "completeness": {"settled": 2, "total": 12},
+  "updatedAt": 1793294811191
+}
+```
+
+`area` is the practice area and the first matching criterion: keep the names consistent across cases ("Procurement", "PMO & value capture", "Pricing", ...).
+
+## File digest (`cases/<CODE>/docs/<docId>`)
+
+Written by `/brian review` so Brian Ask can open case files when a context isn't enough.
+
+```json
+{
+  "path": "04_Analyses/Savings_Baseline_v5.xlsx",
+  "title": "Savings baseline v5",
+  "type": "xlsx",
+  "summary": "One or two sentences.",
+  "text": "The digest: what the file is, facts and figures exactly as written, version, reusable part. Up to about 15,000 characters.",
+  "modifiedAt": "2026-06-30"
+}
+```
 
 ## Brian/brian.json
 
@@ -72,7 +124,7 @@ Written by Brian when an interview is merged (structure in [template/context_pro
 {
   "caseCode": "<CODE>",
   "caseName": "<project name> - <client>",
-  "artifactUrl": "https://claude.ai/artifact/<id>",
+  "artifactUrl": "https://claude.ai/artifact/<id of the Brian library>",
   "createdAt": "<YYYY-MM-DDTHH:MM:SSZ>",
   "lastReview": "<YYYY-MM-DDTHH:MM:SSZ>",
   "lastSync": "<YYYY-MM-DDTHH:MM:SSZ or null>"

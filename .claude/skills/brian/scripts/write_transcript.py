@@ -47,7 +47,7 @@ def main():
         f"Merged into case context: {'yes, on ' + stamp(merged_at)[:10] if merged_at else 'no'}",
         "",
         'Speakers: "Brian" is the AI interviewer; "Interviewee" is the case team member.',
-        'Each settled question ends with a "Recorded for Qnn:" line.',
+        'The interview closes with a "# Project knowledge record"; settled open questions have a "Recorded for Qnn:" line.',
         "",
         "=" * 60,
         "",

@@ -1,8 +1,9 @@
 <title>Brian</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
-  /* Layout: fixed 260px case + interview list on the left, thread + composer on the right; sidebar becomes a drawer under 760px.
-     Single deliberate dark theme, per the Brian spec. */
+  /* Layout: 260px sidebar (mode toggle + case or interview list), main pane on the right: a card library,
+     a card detail, or a chat thread, with the composer at the bottom. Sidebar becomes a drawer under 760px.
+     Single deliberate dark theme, per the Brian spec. Area colours mark practice areas on case cards. */
   :root {
     --bg: #0B1A13;
     --surface: #11261C;
@@ -12,10 +13,16 @@
     --text: #E6F2EA;
     --text-muted: #8FB3A0;
     --border: rgba(124, 227, 166, 0.12);
+    --border-strong: rgba(124, 227, 166, 0.28);
     --danger: #E58C8C;
     --danger-bg: rgba(229, 140, 140, 0.08);
     --danger-border: rgba(229, 140, 140, 0.35);
     --scrim: rgba(0, 0, 0, 0.5);
+    --area-1: #7CE3A6;
+    --area-2: #6CC6E0;
+    --area-3: #E3C26B;
+    --area-4: #C3A8F0;
+    --area-5: #F0A88B;
     --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --mono: ui-monospace, "Cascadia Mono", Consolas, "SFMono-Regular", Menlo, monospace;
     --sidebar-w: 260px;
@@ -52,17 +59,28 @@
   }
   .brand {
     display: flex; align-items: center; gap: 10px;
-    padding: 4px 6px 4px;
+    padding: 4px 6px 0;
     font-size: 20px; font-weight: 650; color: var(--accent-light);
   }
   .brand svg { width: 32px; height: 32px; }
+  .mode-toggle {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+    padding: 4px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 12px;
+  }
+  .mode-toggle button {
+    border: none; background: transparent; border-radius: 8px;
+    padding: 7px 8px; font-size: 13px; font-weight: 600; color: var(--text-muted);
+  }
+  .mode-toggle button[aria-selected="true"] { background: var(--surface-2); color: var(--accent-light); }
+  .side-section { display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; }
   .case-block {
     display: flex; flex-direction: column; gap: 2px;
     padding: 10px 12px;
     border: 1px solid var(--border); border-radius: 12px;
     background: var(--bg);
   }
-  .case-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+  .label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
   .case-code { font-family: var(--mono); font-size: 14px; color: var(--accent-light); overflow-wrap: anywhere; }
   .case-name { font-size: 13px; overflow-wrap: anywhere; }
   .case-actions { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; }
@@ -76,7 +94,7 @@
   }
   .new-chat:hover:not(:disabled) { filter: brightness(1.1); }
   .new-chat:disabled { opacity: 0.45; }
-  .list-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); padding: 0 6px; }
+  .list-label { padding: 0 6px; }
   .chat-list {
     list-style: none; margin: 0; padding: 0;
     overflow-y: auto; flex: 1; min-height: 0;
@@ -98,8 +116,9 @@
     color: var(--text);
     display: flex; flex-direction: column;
   }
-  .chat-item .open .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .chat-item .open .s { font-size: 12px; color: var(--text-muted); }
+  .chat-item .open .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 8px; }
+  .chat-item .open .s { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--area); flex-shrink: 0; }
   .chat-item .delete {
     background: none; border: none;
     padding: 6px 8px; margin-right: 4px;
@@ -137,13 +156,116 @@
   }
   .menu-btn svg { width: 20px; height: 20px; }
   .topbar .title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-
   .banner {
     margin: 12px var(--gutter-r) 0 16px;
     padding: 8px 12px; border-radius: 10px; font-size: 13px;
     background: var(--danger-bg); border: 1px solid var(--danger-border);
   }
+  .link-btn {
+    background: none; border: none; padding: 0;
+    color: var(--accent-light); font-size: 12px; text-decoration: underline; text-underline-offset: 2px;
+  }
+  .back { align-self: flex-start; font-size: 13px; }
+  .btn {
+    border-radius: 10px; padding: 7px 12px; font-size: 13px; font-weight: 600;
+    border: 1px solid var(--border-strong); background: transparent; color: var(--text);
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent-light); color: var(--accent-light); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--text); }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.1); color: var(--text); }
+  .btn:disabled { opacity: 0.45; }
 
+  /* Library and card detail */
+  .pane {
+    flex: 1; overflow-y: auto;
+    padding-block: 28px 16px;
+    padding-left: 16px;
+    padding-right: var(--gutter-r);
+  }
+  .pane-inner { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+  .lib-head { display: flex; flex-direction: column; gap: 6px; }
+  .lib-head h1 { margin: 0; font-size: 28px; font-weight: 650; line-height: 1.2; text-wrap: balance; }
+  .lib-head p { margin: 0; color: var(--text-muted); max-width: 64ch; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-light); font-weight: 600; }
+  .area-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+  .filter {
+    border: 1px solid var(--border); background: var(--surface); border-radius: 999px;
+    padding: 5px 12px; font-size: 13px; color: var(--text-muted);
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .filter[aria-pressed="true"] { border-color: var(--area, var(--accent-light)); color: var(--text); background: var(--surface-2); }
+  .filter .n { font-variant-numeric: tabular-nums; opacity: 0.8; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; }
+  .case-card {
+    display: flex; flex-direction: column; gap: 10px;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    min-width: 0;
+  }
+  .case-card:hover { border-color: var(--border-strong); }
+  .cc-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+  .area-chip {
+    display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+    padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    color: var(--area);
+    background: color-mix(in srgb, var(--area) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--area) 32%, transparent);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .cc-period { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cc-title {
+    background: none; border: none; padding: 0; text-align: left;
+    font-size: 17px; font-weight: 650; line-height: 1.3; color: var(--text); text-wrap: balance;
+  }
+  .cc-title:hover { color: var(--accent-light); }
+  .cc-meta { margin: -4px 0 0; font-size: 13px; color: var(--text-muted); }
+  .cc-summary {
+    margin: 0; font-size: 14px;
+    display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .cc-results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+  .cc-results li { position: relative; padding-left: 14px; }
+  .cc-results li::before {
+    content: ""; position: absolute; left: 0; top: 0.55em;
+    width: 6px; height: 6px; border-radius: 50%; background: var(--area);
+  }
+  .cc-foot { margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
+  .meter { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+  .meter span { display: block; height: 100%; background: var(--area); border-radius: inherit; }
+  .cc-complete { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; gap: 8px; }
+  .cc-code { font-family: var(--mono); }
+  .cc-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .lib-empty {
+    padding: 28px; border: 1px dashed var(--border-strong); border-radius: 14px;
+    color: var(--text-muted); text-align: center;
+  }
+  .detail-head { display: flex; flex-direction: column; gap: 8px; }
+  .detail-head .row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+  .detail-head h1 { margin: 0; font-size: 26px; font-weight: 650; line-height: 1.25; text-wrap: balance; }
+  .detail-meta { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 14px; color: var(--text-muted); }
+  .detail-meta b { color: var(--text); font-weight: 600; }
+  .detail-summary { margin: 0; max-width: 72ch; }
+  .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+  .detail-block {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px 16px; min-width: 0;
+  }
+  .detail-block h2 { margin: 0 0 10px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); font-weight: 600; }
+  .detail-block ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+  .detail-block p { margin: 0; font-size: 14px; color: var(--text-muted); }
+  .topics { display: flex; flex-wrap: wrap; gap: 6px; }
+  .topic {
+    border: 1px solid var(--border-strong); background: var(--bg); border-radius: 999px;
+    padding: 4px 10px; font-size: 13px; text-align: left;
+  }
+  .topic:hover { border-color: var(--accent-light); color: var(--accent-light); }
+  .completeness { display: flex; flex-direction: column; gap: 8px; }
+  .completeness .meter { height: 8px; }
+  .detail-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  /* Thread */
   .thread {
     flex: 1; overflow-y: auto;
     padding-block: 24px;
@@ -151,27 +273,23 @@
     padding-right: var(--gutter-r);
   }
   .thread-inner { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
-
   .msg { display: flex; gap: 10px; align-items: flex-start; min-width: 0; }
   .msg.user { justify-content: flex-end; }
   .avatar { width: 30px; height: 30px; flex-shrink: 0; margin-top: 2px; }
   .bubble {
     padding: 10px 14px;
     border-radius: 14px;
-    max-width: min(620px, 85%);
+    max-width: min(640px, 88%);
     min-width: 0;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
   .msg.user .bubble { background: var(--accent); border-bottom-right-radius: 4px; }
-  .msg.assistant .bubble {
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-bottom-left-radius: 4px;
-  }
+  .msg.assistant .bubble { background: var(--surface-2); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
   .msg.error .bubble { background: var(--danger-bg); border: 1px solid var(--danger-border); }
   .msg.status .bubble { background: transparent; border: 1px dashed var(--border); color: var(--text-muted); }
-  .bubble .files { display: block; margin-top: 6px; font-size: 13px; opacity: 0.85; }
+  .bubble .files, .bubble .looked { display: block; margin-top: 8px; font-size: 12px; color: var(--text-muted); }
+  .msg.user .bubble .files { color: var(--text); opacity: 0.85; }
   .thinking { color: var(--text-muted); }
   .cursor {
     display: inline-block;
@@ -183,19 +301,15 @@
   }
   @keyframes blink { 50% { opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .cursor { animation: none; } }
-
   .context-doc {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 16px 18px;
-    white-space: pre-wrap; overflow-wrap: anywhere;
-    font-size: 14px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 16px 18px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px;
   }
   .context-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: baseline; }
   .context-head h2 { margin: 0; font-size: 18px; }
   .context-head span { color: var(--text-muted); font-size: 13px; }
 
+  /* Interview start screens */
   .empty-state {
     flex: 1;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -206,7 +320,7 @@
   }
   .empty-state svg { width: 72px; height: 72px; margin-bottom: 8px; }
   .empty-state h1 { margin: 0; font-size: 26px; font-weight: 650; text-wrap: balance; }
-  .empty-state p { margin: 0; color: var(--text-muted); max-width: 48ch; }
+  .empty-state p { margin: 0; color: var(--text-muted); max-width: 50ch; }
   .case-form { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 12px; width: 100%; max-width: 420px; }
   .case-form input {
     flex: 1 1 200px; min-width: 0;
@@ -222,17 +336,20 @@
   }
   .start-btn:hover:not(:disabled) { filter: brightness(1.1); }
   .start-btn:disabled { opacity: 0.45; }
-  .link-btn {
-    background: none; border: none; padding: 0;
-    color: var(--accent-light); font-size: 12px; text-decoration: underline; text-underline-offset: 2px;
-  }
 
   /* Composer */
   .composer {
     padding-block: 12px 18px;
     padding-left: 16px;
     padding-right: var(--gutter-r);
+    border-top: 1px solid transparent;
   }
+  .suggestions { max-width: 760px; margin: 0 auto 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .suggestion {
+    border: 1px solid var(--border-strong); background: var(--surface); border-radius: 999px;
+    padding: 6px 12px; font-size: 13px; text-align: left;
+  }
+  .suggestion:hover { border-color: var(--accent-light); color: var(--accent-light); }
   .chips { max-width: 760px; margin: 0 auto 8px; display: flex; flex-wrap: wrap; gap: 6px; }
   .chip {
     display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
@@ -251,10 +368,7 @@
     padding: 8px;
   }
   .composer-inner:focus-within { border-color: var(--accent-light); }
-  .attach-btn {
-    background: none; border: none; color: var(--text-muted);
-    padding: 6px; border-radius: 8px; display: flex;
-  }
+  .attach-btn { background: none; border: none; color: var(--text-muted); padding: 6px; border-radius: 8px; display: flex; }
   .attach-btn:hover:not(:disabled) { color: var(--accent-light); }
   .attach-btn svg { width: 20px; height: 20px; }
   textarea {
@@ -269,10 +383,7 @@
     outline: none;
   }
   textarea::placeholder { color: var(--text-muted); }
-  .send, .stop {
-    border: none; border-radius: 10px;
-    padding: 8px 14px; font-weight: 600;
-  }
+  .send, .stop { border: none; border-radius: 10px; padding: 8px 14px; font-weight: 600; }
   .send { background: var(--accent); }
   .send:disabled { opacity: 0.45; }
   .stop { background: transparent; border: 1px solid var(--accent-light); color: var(--accent-light); }
@@ -300,14 +411,14 @@
       transition: transform 0.2s ease;
     }
     body.sidebar-open .sidebar { transform: none; }
-    body.sidebar-open .scrim {
-      display: block; position: fixed; inset: 0; z-index: 10;
-      background: var(--scrim);
-    }
+    body.sidebar-open .scrim { display: block; position: fixed; inset: 0; z-index: 10; background: var(--scrim); }
     .topbar { display: flex; }
-    .thread { padding-block: 16px; padding-left: var(--gutter-l); }
+    .pane, .thread { padding-left: var(--gutter-l); }
+    .pane { padding-block: 18px 12px; }
+    .thread { padding-block: 16px; }
     .composer { padding-block: 8px 12px; padding-left: var(--gutter-l); }
     .banner { margin-left: var(--gutter-l); }
+    .lib-head h1 { font-size: 23px; }
     .chat-item .delete { opacity: 1; }
   }
   @media (prefers-reduced-motion: reduce) { .sidebar { transition: none; } }
@@ -315,35 +426,64 @@
 
 <aside class="sidebar" id="sidebar">
   <div class="brand"><span class="logo-slot"></span>Brian</div>
-  <div class="case-block" id="caseBlock" hidden>
-    <span class="case-label">Case</span>
-    <span class="case-code" id="caseCodeLabel"></span>
-    <span class="case-name" id="caseNameLabel"></span>
-    <div class="case-actions">
-      <button type="button" class="link-btn" id="contextBtn">View case context</button>
-      <button type="button" class="link-btn" id="changeCaseBtn">Change case</button>
-    </div>
+  <div class="mode-toggle" role="tablist" aria-label="Mode">
+    <button type="button" role="tab" id="modeAsk" aria-selected="true">Ask</button>
+    <button type="button" role="tab" id="modeInterview" aria-selected="false">Get asked</button>
   </div>
-  <button class="new-chat" id="newChat" disabled>+ New interview</button>
-  <span class="list-label" id="listLabel" hidden>Interviews</span>
-  <ul class="chat-list" id="chatList"></ul>
+
+  <div class="side-section" id="askSide">
+    <button class="new-chat" id="newAsk">+ New question</button>
+    <span class="label list-label">Cases on file</span>
+    <ul class="chat-list" id="caseList"></ul>
+  </div>
+
+  <div class="side-section" id="interviewSide" hidden>
+    <div class="case-block" id="caseBlock" hidden>
+      <span class="label">Case</span>
+      <span class="case-code" id="caseCodeLabel"></span>
+      <span class="case-name" id="caseNameLabel"></span>
+      <div class="case-actions">
+        <button type="button" class="link-btn" id="contextBtn">View case context</button>
+        <button type="button" class="link-btn" id="changeCaseBtn">Change case</button>
+      </div>
+    </div>
+    <button class="new-chat" id="newChat" disabled>+ New interview</button>
+    <span class="label list-label" id="listLabel" hidden>Interviews</span>
+    <ul class="chat-list" id="chatList"></ul>
+  </div>
   <div class="store-note" id="storeNote"></div>
 </aside>
 <div class="scrim" id="scrim"></div>
 
 <main class="main">
   <div class="topbar">
-    <button class="menu-btn" id="menuBtn" aria-label="Open interview list">
+    <button class="menu-btn" id="menuBtn" aria-label="Open the sidebar">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
     </button>
     <span class="title" id="topTitle">Brian</span>
   </div>
   <div class="banner" id="banner" role="status" hidden></div>
 
-  <div class="empty-state" id="pickerView">
+  <section class="pane" id="libraryView" hidden>
+    <div class="pane-inner">
+      <header class="lib-head">
+        <span class="eyebrow">Brian Ask</span>
+        <h1>What can past cases tell you?</h1>
+        <p id="libIntro">Loading the cases on file…</p>
+      </header>
+      <div class="area-filters" id="areaFilters" role="group" aria-label="Filter by practice area"></div>
+      <div class="card-grid" id="cardGrid"></div>
+    </div>
+  </section>
+
+  <section class="pane" id="cardView" hidden>
+    <div class="pane-inner" id="cardDetail"></div>
+  </section>
+
+  <div class="empty-state" id="pickerView" hidden>
     <span class="logo-slot"></span>
-    <h1>Hi, I'm Brian</h1>
-    <p>I collect the context of a closed case that its files don't capture. Enter the case code to open the case's interviews.</p>
+    <h1>Get asked about your case</h1>
+    <p>A short debrief that turns what you know into a reusable record for future case teams. Enter the case code to start.</p>
     <form class="case-form" id="caseForm">
       <input id="caseInput" placeholder="Case code, e.g. DEMO-LIGHTHOUSE" autocomplete="off" spellcheck="false" aria-label="Case code">
       <button type="submit" class="start-btn" id="openCaseBtn">Open case</button>
@@ -363,6 +503,7 @@
   </div>
 
   <form class="composer" id="composer" hidden>
+    <div class="suggestions" id="suggestions" hidden></div>
     <div class="chips" id="chips" hidden></div>
     <div class="composer-inner">
       <button type="button" class="attach-btn" id="attachBtn" aria-label="Attach files" title="Attach files (PDF, images, .txt, .md, .csv, .json)" hidden>
@@ -374,7 +515,7 @@
       <button type="button" class="stop" id="stopBtn" hidden>Stop</button>
     </div>
     <div class="actions-row">
-      <span>Brian answers with your own Claude account.</span>
+      <span id="composerNote"></span>
       <span class="btns">
         <button type="button" class="link-btn" id="saveBtn" hidden>Save transcript (.txt)</button>
         <button type="button" class="finish-btn" id="finishBtn" hidden>Finish &amp; update case context</button>
@@ -387,23 +528,31 @@
 (() => {
   "use strict";
 
-  // Brian as a Claude Artifact: a case-context interviewer. No backend, no API key.
-  // - `sample` asks Claude on the viewer's own account.
-  // - `db` holds each case under cases/<CODE> (questions + living context.md), its interviews under
-  //   cases/<CODE>/chats and uploaded files under cases/<CODE>/files. The /brian skill in Claude Code
-  //   seeds the questions and mirrors transcripts, files and context.md into the case SharePoint.
-  // - `assets` stores uploaded files; `downloads` saves a transcript.
+  // Brian as a Claude Artifact, with two modes. No backend, no API key.
+  // - Ask: questions across every case on file. Case cards come from cases/<CODE>.card; Claude reads a
+  //   case's context and file digests through page tools (cases/<CODE>/docs, cases/<CODE>/files).
+  // - Get asked: a time-first debrief interview (the team's procurement-project-debrief skill, adapted),
+  //   stored under cases/<CODE>/chats and merged into the case's living context and card.
+  // The /brian skill in Claude Code loads questions, cards and file digests, and mirrors results to SharePoint.
   const MODEL = "claude-sonnet-5-5";
   const START_MESSAGE = "Hi Brian, let's start.";
   const LAST_CASE_KEY = "brian.lastCase";
+  const MODE_KEY = "brian.mode";
   const MAX_INPUT_CHARS = 200000;    // the platform caps input at 256 KiB
   const MAX_INLINE_TEXT = 30000;     // text files up to this size are given to Claude in full
+  const TOOL_CHUNK = 20000;          // tool results are capped at 32 KB
+  const AREA_COLOURS = 5;
   const PERMANENT_ERRORS = new Set(["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"]);
   const FILE_TYPES = {
     pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp",
     txt: "text/plain", md: "text/markdown", csv: "text/csv", json: "application/json",
   };
   const OFFICE = /\.(docx?|xlsx?|xlsm|pptx?|msg)$/i;
+  const SUGGESTIONS = [
+    "Give me an overview of all cases on file",
+    "I'm starting a procurement case for a logistics company. Which past cases should I look at?",
+    "What have we learned about running a value-capture PMO?",
+  ];
 
   const LOGO_SVG = `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <path fill="#7CE3A6" d="M31 10C24 8 17 11 15 17C10 18 7 23 8 28C5 31 5 37 8 40C7 46 11 51 17 52C20 56 26 57 31 54Z"/>
@@ -419,12 +568,14 @@
 
   const $ = (id) => document.getElementById(id);
   const els = {};
-  for (const id of ["sidebar", "caseBlock", "caseCodeLabel", "caseNameLabel", "contextBtn", "changeCaseBtn", "newChat",
-    "listLabel", "chatList", "storeNote", "scrim", "menuBtn", "topTitle", "banner", "pickerView", "caseForm", "caseInput",
-    "openCaseBtn", "caseError", "caseView", "caseTitle", "caseSummary", "startBtn", "thread", "threadInner", "composer",
-    "chips", "attachBtn", "fileInput", "input", "sendBtn", "stopBtn", "saveBtn", "finishBtn"]) els[id] = $(id);
+  for (const id of ["sidebar", "modeAsk", "modeInterview", "askSide", "newAsk", "caseList", "interviewSide", "caseBlock",
+    "caseCodeLabel", "caseNameLabel", "contextBtn", "changeCaseBtn", "newChat", "listLabel", "chatList", "storeNote", "scrim",
+    "menuBtn", "topTitle", "banner", "libraryView", "libIntro", "areaFilters", "cardGrid", "cardView", "cardDetail",
+    "pickerView", "caseForm", "caseInput", "openCaseBtn", "caseError", "caseView", "caseTitle", "caseSummary", "startBtn",
+    "thread", "threadInner", "composer", "suggestions", "chips", "attachBtn", "fileInput", "input", "sendBtn", "stopBtn",
+    "composerNote", "saveBtn", "finishBtn"]) els[id] = $(id);
 
-  document.querySelectorAll(".logo-slot").forEach((el) => { el.innerHTML = LOGO_SVG; });
+  document.querySelectorAll(".logo-slot").forEach((n) => { n.innerHTML = LOGO_SVG; });
 
   const use = (name) => (window.claude && typeof window.claude.use === "function")
     ? window.claude.use(name).catch(() => null)
@@ -433,17 +584,59 @@
   // ---------- Helpers ----------
   const pad = (n) => String(n).padStart(2, "0");
   const day = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
-  const stamp = (ms) => { const d = new Date(ms); return `${day(ms)} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const hhmm = (ms) => { const d = new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const stamp = (ms) => `${day(ms)} ${hhmm(ms)}`;
   const shortId = (id) => id.replace(/-/g, "").slice(0, 8);
   const newId = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(16).slice(2));
   const fill = (tpl, vars) => tpl.replace(/\{\{(\w+)\}\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
   const kb = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB");
   const storageGet = (k) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } };
   const storageSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* per-viewer convenience only */ } };
+  const str = (v) => (typeof v === "string" ? v.trim() : "");
+  const list = (v, n) => (Array.isArray(v) ? v.filter((x) => typeof x === "string" && x.trim()).map((x) => x.trim()).slice(0, n) : []);
+  const el = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  };
+  const button = (cls, text, onClick) => {
+    const b = el("button", cls, text);
+    b.type = "button";
+    b.addEventListener("click", onClick);
+    return b;
+  };
 
   function normaliseCode(raw) {
     const code = String(raw || "").trim().toUpperCase().replace(/\s+/g, "-");
     return /^[A-Z0-9_\-.~:@+]{1,60}$/.test(code) && code !== "." && code !== ".." ? code : "";
+  }
+
+  const countQuestions = (text) => (String(text || "").match(/^Q\d{2,}\s*$/gm) || []).length;
+
+  function normCard(c, questions) {
+    c = c && typeof c === "object" && !Array.isArray(c) ? c : {};
+    const total = Number(c.completeness?.total) || countQuestions(questions);
+    return {
+      client: str(c.client), industry: str(c.industry), area: str(c.area) || "Other", geography: str(c.geography),
+      period: str(c.period), caseType: str(c.caseType), summary: str(c.summary),
+      keyResults: list(c.keyResults, 4), lessons: list(c.lessons, 4), documents: list(c.documents, 4),
+      goodToAskAbout: list(c.goodToAskAbout, 8),
+      completeness: { settled: Math.min(Number(c.completeness?.settled) || 0, total || 0), total },
+    };
+  }
+
+  function caseFromDoc(id, d) {
+    d = d || {};
+    return {
+      code: id,
+      name: str(d.caseName) || id,
+      card: normCard(d.card, d.questions),
+      context: typeof d.context === "string" ? d.context : "",
+      questions: typeof d.questions === "string" ? d.questions : "",
+      contextUpdatedAt: Number(d.contextUpdatedAt) || 0,
+      merged: Array.isArray(d.mergedChats) ? d.mergedChats.length : 0,
+    };
   }
 
   function cleanChat(id, c) {
@@ -469,18 +662,32 @@
   // ---------- State ----------
   let db = null, uid = null, sample = null, sampleLimits = null, downloads = null, assets = null;
   let prompts = null;
+  let mode = storageGet(MODE_KEY) === "interview" ? "interview" : "ask";
+  let view = mode === "ask" ? "library" : "picker";   // library | card | ask | context | picker | case | chat
+  let streaming = null;            // { kind: "ask" | "interview", controller, chatId? }
+  let sampleBlocked = false;
+
+  // Ask
+  let library = [];
+  let libraryLoaded = false;
+  let libraryError = "";
+  let areaFilter = "";
+  let focusCode = "";
+  let contextCode = "";
+  let askTurns = [];               // { role, content, looked? }
+  const fileCache = new Map();
+
+  // Get asked
   let caseCode = "", caseDoc = null;
   let chats = [];
-  const created = new Set();       // chat ids that already exist in the store
+  const created = new Set();       // interview ids that already exist in the store
   let currentId = null;
-  let view = "picker";             // picker | case | chat | context
-  let streaming = null;            // { chatId, controller }
   let merging = false;
   let confirmingId = null;
   let pending = [];                // attachments for the next message
-  let sampleBlocked = false;
 
   const currentChat = () => chats.find((c) => c.id === currentId) || null;
+  const libraryCase = (code) => library.find((c) => c.code === code) || null;
 
   // ---------- Store writes (one at a time, in order) ----------
   let writeChain = Promise.resolve();
@@ -506,10 +713,58 @@
     });
   }
 
-  // ---------- Rendering ----------
+  // ---------- Areas ----------
+  function areas() {
+    return [...new Set(library.map((c) => c.card.area))].sort((a, b) => a.localeCompare(b));
+  }
+  function areaColour(area) {
+    const i = Math.max(0, areas().indexOf(area));
+    return `var(--area-${(i % AREA_COLOURS) + 1})`;
+  }
+  const sortedLibrary = () => [...library].sort((a, b) => a.card.area.localeCompare(b.card.area) || a.name.localeCompare(b.name));
+
+  // ---------- Rendering: shared ----------
   function setBanner(text) { els.banner.textContent = text; els.banner.hidden = !text; }
 
+  function topTitle() {
+    if (view === "card" || (view === "context" && mode === "ask")) return libraryCase(view === "card" ? focusCode : contextCode)?.name || "Brian Ask";
+    if (mode === "ask") return "Brian Ask";
+    if (view === "chat") return currentChat()?.title || caseCode;
+    return caseCode || "Get asked";
+  }
+
   function renderSidebar() {
+    const ask = mode === "ask";
+    els.modeAsk.setAttribute("aria-selected", String(ask));
+    els.modeInterview.setAttribute("aria-selected", String(!ask));
+    els.askSide.hidden = !ask;
+    els.interviewSide.hidden = ask;
+    els.newAsk.disabled = !!streaming;
+    if (ask) renderCaseList(); else renderInterviewList();
+  }
+
+  function renderCaseList() {
+    els.caseList.replaceChildren();
+    if (!libraryLoaded) {
+      els.caseList.append(el("li", "empty-list", libraryError ? "Couldn't load the cases" : "Loading cases…"));
+      return;
+    }
+    if (!library.length) { els.caseList.append(el("li", "empty-list", "No cases on file yet")); return; }
+    for (const c of sortedLibrary()) {
+      const li = el("li", "chat-item" + (view === "card" && focusCode === c.code ? " active" : ""));
+      const b = button("open", null, () => openCard(c.code));
+      const t = el("span", "t");
+      const dot = el("span", "dot");
+      dot.style.setProperty("--area", areaColour(c.card.area));
+      t.append(dot, document.createTextNode(c.name));
+      b.append(t, el("span", "s", `${c.code} · ${c.card.area}`));
+      b.title = c.name;
+      li.append(b);
+      els.caseList.append(li);
+    }
+  }
+
+  function renderInterviewList() {
     const open = !!caseDoc;
     els.caseBlock.hidden = !open;
     els.listLabel.hidden = !open;
@@ -519,47 +774,29 @@
     els.chatList.replaceChildren();
     if (!open) return;
     const sorted = [...chats].sort((a, b) => b.createdAt - a.createdAt);
-    if (!sorted.length) {
-      const li = document.createElement("li");
-      li.className = "empty-list";
-      li.textContent = "No interviews yet";
-      els.chatList.append(li);
-    }
+    if (!sorted.length) els.chatList.append(el("li", "empty-list", "No interviews yet"));
     for (const chat of sorted) {
-      const li = document.createElement("li");
-      li.className = "chat-item" + (chat.id === currentId && view === "chat" ? " active" : "");
+      const li = el("li", "chat-item" + (chat.id === currentId && view === "chat" ? " active" : ""));
       if (chat.id === confirmingId) {
         li.classList.add("confirming");
-        const label = document.createElement("span");
-        label.className = "confirm-label";
-        label.textContent = "Delete for the whole team?";
-        const no = document.createElement("button");
-        no.className = "confirm-btn"; no.textContent = "Cancel";
-        no.addEventListener("click", () => { confirmingId = null; renderSidebar(); });
-        const yes = document.createElement("button");
-        yes.className = "confirm-btn yes"; yes.textContent = "Delete";
-        yes.addEventListener("click", () => deleteChat(chat.id));
-        li.append(label, no, yes);
+        li.append(
+          el("span", "confirm-label", "Delete for the whole team?"),
+          button("confirm-btn", "Cancel", () => { confirmingId = null; renderSidebar(); }),
+          button("confirm-btn yes", "Delete", () => deleteChat(chat.id)),
+        );
         els.chatList.append(li);
         continue;
       }
-      const openBtn = document.createElement("button");
-      openBtn.className = "open";
-      const t = document.createElement("span"); t.className = "t"; t.textContent = chat.title;
-      const s = document.createElement("span"); s.className = "s";
-      s.textContent = (chat.author && chat.author === uid ? "You" : "Team member") + " · " +
-        (chat.contextMerged ? "in case context" : "not yet in context");
-      openBtn.append(t, s);
-      openBtn.title = chat.title;
-      openBtn.addEventListener("click", () => selectChat(chat.id));
-      li.append(openBtn);
+      const b = button("open", null, () => selectChat(chat.id));
+      b.append(el("span", "t", chat.title), el("span", "s",
+        (chat.author && chat.author === uid ? "You" : "Team member") + " · " + (chat.contextMerged ? "in case context" : "not yet in context")));
+      b.title = chat.title;
+      li.append(b);
       if (chat.author && chat.author === uid) {
-        const del = document.createElement("button");
-        del.className = "delete";
+        const del = button("delete", null, () => { confirmingId = chat.id; renderSidebar(); });
         del.innerHTML = TRASH_SVG;
         del.setAttribute("aria-label", "Delete interview: " + chat.title);
         del.title = "Delete interview";
-        del.addEventListener("click", () => { confirmingId = chat.id; renderSidebar(); });
         li.append(del);
       }
       els.chatList.append(li);
@@ -567,62 +804,213 @@
   }
 
   function messageEl(role, text, files) {
-    const row = document.createElement("div");
-    row.className = "msg " + role;
+    const row = el("div", "msg " + role);
     if (role !== "user") {
-      const av = document.createElement("span");
-      av.className = "avatar";
+      const av = el("span", "avatar");
       av.innerHTML = LOGO_SVG;
       row.append(av);
     }
-    const bubble = document.createElement("div");
-    bubble.className = "bubble";
-    bubble.textContent = text;
-    if (files && files.length) {
-      const f = document.createElement("span");
-      f.className = "files";
-      f.textContent = files.map((x) => "Attached: " + x.name).join("\n");
-      bubble.append(f);
-    }
+    const bubble = el("div", "bubble", text);
+    if (files && files.length) bubble.append(el("span", "files", files.map((x) => "Attached: " + x.name).join("\n")));
     row.append(bubble);
     return { row, bubble };
   }
 
   function renderMain() {
-    const chat = currentChat();
+    els.libraryView.hidden = view !== "library";
+    els.cardView.hidden = view !== "card";
     els.pickerView.hidden = view !== "picker";
     els.caseView.hidden = view !== "case";
-    els.thread.hidden = view !== "chat" && view !== "context";
-    els.composer.hidden = view !== "case" && view !== "chat";
-    els.topTitle.textContent = view === "chat" && chat ? chat.title : (caseCode || "Brian");
-
-    if (view === "case") {
-      els.caseTitle.textContent = caseDoc.caseName || caseCode;
-      const n = chats.length;
-      els.caseSummary.textContent = (n ? `${n} earlier interview${n === 1 ? "" : "s"}. ` : "No interviews yet. ") +
-        (caseDoc.contextUpdatedAt ? `The case context was last updated on ${day(caseDoc.contextUpdatedAt)}. ` : "") +
-        "Brian picks up where the team left off and only asks what is still open.";
-    }
-
-    els.threadInner.replaceChildren();
-    if (view === "context") {
-      const head = document.createElement("div");
-      head.className = "context-head";
-      const h = document.createElement("h2"); h.textContent = "Case context";
-      const s = document.createElement("span");
-      s.textContent = caseDoc.contextUpdatedAt ? "Last updated " + stamp(caseDoc.contextUpdatedAt) : "Not created yet";
-      head.append(h, s);
-      const doc = document.createElement("div");
-      doc.className = "context-doc";
-      doc.textContent = caseDoc.context || "No interview has been merged into the case context yet. Finish an interview with \"Finish & update case context\" to create it.";
-      els.threadInner.append(head, doc);
-    }
-    if (view === "chat" && chat) {
-      for (const m of chat.messages) els.threadInner.append(messageEl(m.role, m.content, m.files).row);
-      scrollToBottom(true);
-    }
+    els.thread.hidden = !["ask", "chat", "context"].includes(view);
+    els.composer.hidden = !["library", "card", "ask", "case", "chat"].includes(view);
+    els.topTitle.textContent = topTitle();
+    if (view === "library") renderLibrary();
+    if (view === "card") renderCard();
+    if (view === "case") renderCaseView();
+    if (["ask", "chat", "context"].includes(view)) renderThread();
     updateComposer();
     renderSidebar();
+  }
+
+  // ---------- Rendering: Ask ----------
+  function renderLibrary() {
+    const n = library.length;
+    els.libIntro.textContent = libraryError ||
+      (!libraryLoaded ? "Loading the cases on file…"
+        : `Context from ${n} closed case${n === 1 ? "" : "s"}, captured in debriefs with their case teams. Ask about one case, get an overview, or describe your new case and Brian finds the relevant ones.`);
+
+    els.areaFilters.replaceChildren();
+    if (libraryLoaded && n) {
+      const all = button("filter", null, () => { areaFilter = ""; renderLibrary(); });
+      all.setAttribute("aria-pressed", String(!areaFilter));
+      all.append(document.createTextNode("All areas"), el("span", "n", String(n)));
+      els.areaFilters.append(all);
+      for (const a of areas()) {
+        const f = button("filter", null, () => { areaFilter = areaFilter === a ? "" : a; renderLibrary(); });
+        f.style.setProperty("--area", areaColour(a));
+        f.setAttribute("aria-pressed", String(areaFilter === a));
+        const dot = el("span", "dot");
+        f.append(dot, document.createTextNode(a), el("span", "n", String(library.filter((c) => c.card.area === a).length)));
+        els.areaFilters.append(f);
+      }
+    }
+
+    els.cardGrid.replaceChildren();
+    if (!libraryLoaded) return;
+    if (!n) {
+      els.cardGrid.append(el("div", "lib-empty", "No cases on file yet. A case team adds its case by running /brian review <case code> in Claude Code."));
+      return;
+    }
+    for (const c of sortedLibrary().filter((x) => !areaFilter || x.card.area === areaFilter)) els.cardGrid.append(cardEl(c));
+  }
+
+  function areaChip(c) {
+    const chip = el("span", "area-chip", c.card.area);
+    chip.style.setProperty("--area", areaColour(c.card.area));
+    return chip;
+  }
+
+  function completenessText(c) {
+    const { settled, total } = c.card.completeness;
+    const q = total ? `${settled} of ${total} questions settled` : "No open questions listed";
+    return `${q} · ${c.merged} interview${c.merged === 1 ? "" : "s"}`;
+  }
+
+  function meter(c) {
+    const { settled, total } = c.card.completeness;
+    const m = el("div", "meter");
+    m.setAttribute("role", "img");
+    m.setAttribute("aria-label", completenessText(c));
+    const bar = el("span");
+    bar.style.width = (total ? Math.round((settled / total) * 100) : 0) + "%";
+    m.append(bar);
+    return m;
+  }
+
+  function cardEl(c) {
+    const card = el("article", "case-card");
+    card.style.setProperty("--area", areaColour(c.card.area));
+    const top = el("div", "cc-top");
+    top.append(areaChip(c), el("span", "cc-period", c.card.period));
+    const title = button("cc-title", c.name, () => openCard(c.code));
+    const meta = el("p", "cc-meta", [c.card.client, c.card.industry, c.card.geography].filter(Boolean).join(" · "));
+    card.append(top, title, meta);
+    if (c.card.summary) card.append(el("p", "cc-summary", c.card.summary));
+    if (c.card.keyResults.length) {
+      const ul = el("ul", "cc-results");
+      for (const r of c.card.keyResults.slice(0, 3)) ul.append(el("li", null, r));
+      card.append(ul);
+    }
+    const foot = el("div", "cc-foot");
+    const line = el("div", "cc-complete");
+    line.append(el("span", null, completenessText(c)), el("span", "cc-code", c.code));
+    foot.append(meter(c), line);
+    const actions = el("div", "cc-actions");
+    actions.append(button("btn", "Details", () => openCard(c.code)), button("btn primary", "Ask about this case", () => askAbout(c.code)));
+    card.append(foot, actions);
+    return card;
+  }
+
+  function detailBlock(title, items, empty) {
+    const b = el("section", "detail-block");
+    b.append(el("h2", null, title));
+    if (items.length) {
+      const ul = el("ul");
+      for (const i of items) ul.append(el("li", null, i));
+      b.append(ul);
+    } else b.append(el("p", null, empty));
+    return b;
+  }
+
+  function renderCard() {
+    const c = libraryCase(focusCode);
+    els.cardDetail.replaceChildren();
+    if (!c) { view = "library"; return renderMain(); }
+    const back = button("link-btn back", "← All cases", () => { view = "library"; renderMain(); });
+
+    const head = el("header", "detail-head");
+    const row = el("div", "row");
+    row.append(areaChip(c), el("span", "cc-code", c.code));
+    head.append(row, el("h1", null, c.name));
+    const meta = el("div", "detail-meta");
+    for (const [k, v] of [["Client", c.card.client], ["Industry", c.card.industry], ["Geography", c.card.geography], ["Period", c.card.period], ["Type", c.card.caseType]]) {
+      if (!v) continue;
+      const s = el("span");
+      s.append(document.createTextNode(k + ": "), el("b", null, v));
+      meta.append(s);
+    }
+    head.append(meta);
+
+    const parts = [back, head];
+    if (c.card.summary) parts.push(el("p", "detail-summary", c.card.summary));
+
+    const grid = el("div", "detail-grid");
+    grid.append(
+      detailBlock("Key results", c.card.keyResults, "No results recorded yet."),
+      detailBlock("Lessons worth reusing", c.card.lessons, "No lessons recorded yet."),
+      detailBlock("Documents worth reusing", c.card.documents, "No documents recorded yet."),
+    );
+    const ask = el("section", "detail-block");
+    ask.append(el("h2", null, "Good to ask about"));
+    if (c.card.goodToAskAbout.length) {
+      const topics = el("div", "topics");
+      for (const t of c.card.goodToAskAbout) topics.append(button("topic", t, () => askSend(`On ${c.name} (${c.code}): ${t}?`, c.code)));
+      ask.append(topics);
+    } else ask.append(el("p", null, "Ask anything; Brian reads the case context first."));
+    const comp = el("section", "detail-block completeness");
+    comp.append(el("h2", null, "How complete the context is"), meter(c), el("p", null,
+      completenessText(c) + (c.contextUpdatedAt ? ` · updated ${day(c.contextUpdatedAt)}` : "")));
+    grid.append(ask, comp);
+    parts.push(grid);
+
+    const actions = el("div", "detail-actions");
+    actions.append(
+      button("btn primary", "Ask about this case", () => askAbout(c.code)),
+      button("btn", "View full context", () => { contextCode = c.code; view = "context"; renderMain(); }),
+      button("btn", "Get interviewed on this case", () => interviewOn(c.code)),
+    );
+    parts.push(actions);
+    els.cardDetail.append(...parts);
+  }
+
+  function renderThread() {
+    els.threadInner.replaceChildren();
+    if (view === "context") return renderContext();
+    if (view === "ask") {
+      els.threadInner.append(button("link-btn back", "← All cases", () => { view = "library"; renderMain(); }));
+      for (const t of askTurns) {
+        const { row, bubble } = messageEl(t.role, t.content);
+        if (t.looked && t.looked.length) bubble.append(el("span", "looked", "Looked at: " + t.looked.join(" · ")));
+        els.threadInner.append(row);
+      }
+      scrollToBottom(true);
+      return;
+    }
+    const chat = currentChat();
+    if (chat) for (const m of chat.messages) els.threadInner.append(messageEl(m.role, m.content, m.files).row);
+    scrollToBottom(true);
+  }
+
+  function renderContext() {
+    const ask = mode === "ask";
+    const src = ask ? libraryCase(contextCode) : null;
+    const text = ask ? src?.context : caseDoc?.context;
+    const updated = ask ? src?.contextUpdatedAt : caseDoc?.contextUpdatedAt;
+    const back = button("link-btn back", ask ? "← Back to the case" : "← Back to the case overview",
+      () => { view = ask ? "card" : "case"; renderMain(); });
+    const head = el("div", "context-head");
+    head.append(el("h2", null, "Case context"), el("span", null, updated ? "Last updated " + stamp(updated) : "Not created yet"));
+    const doc = el("div", "context-doc", text ||
+      "No interview has been merged into this case's context yet. Run a debrief in \"Get asked\" and finish it with \"Finish & update case context\".");
+    els.threadInner.append(back, head, doc);
+  }
+
+  function renderCaseView() {
+    els.caseTitle.textContent = caseDoc.caseName || caseCode;
+    const n = chats.length;
+    els.caseSummary.textContent = (n ? `${n} earlier interview${n === 1 ? "" : "s"}. ` : "No interviews yet. ") +
+      (caseDoc.contextUpdatedAt ? `The case context was last updated on ${day(caseDoc.contextUpdatedAt)}. ` : "") +
+      "Brian asks how much time you have, then focuses on what you know that the files and earlier interviews don't.";
   }
 
   function isNearBottom() {
@@ -634,41 +1022,46 @@
   }
 
   function updateComposer() {
+    const ask = mode === "ask";
     const busy = !!streaming || merging;
     const uploading = pending.some((p) => !p.assetId);
     els.sendBtn.hidden = !!streaming;
     els.stopBtn.hidden = !streaming;
     els.input.disabled = sampleBlocked;
-    els.sendBtn.disabled = busy || sampleBlocked || !prompts || uploading || (!els.input.value.trim() && !pending.length);
+    els.input.placeholder = ask
+      ? (view === "card" ? "Ask about this case…" : "Ask about past cases, or describe your new case…")
+      : "Message Brian…";
+    const ready = !!prompts && (ask ? libraryLoaded && library.length > 0 : !!caseDoc);
+    const hasInput = !!els.input.value.trim() || (!ask && pending.length > 0);
+    els.sendBtn.disabled = busy || sampleBlocked || !ready || uploading || !hasInput;
     els.startBtn.disabled = busy || sampleBlocked || !prompts;
-    els.attachBtn.hidden = !assets;
+    els.attachBtn.hidden = ask || !assets;
     els.attachBtn.disabled = busy;
-    const chat = view === "chat" ? currentChat() : null;
+    els.suggestions.hidden = !(ask && view === "library" && libraryLoaded && library.length);
+    els.composerNote.textContent = ask
+      ? "Brian answers from the case contexts and files on file, with your own Claude account."
+      : "Brian answers with your own Claude account.";
+
+    const chat = !ask && view === "chat" ? currentChat() : null;
     const hasExchange = !!chat && chat.messages.some((m) => m.role === "assistant");
     els.saveBtn.hidden = !downloads || !chat || !chat.messages.length || busy;
     els.finishBtn.hidden = !hasExchange;
-    els.finishBtn.disabled = busy || sampleBlocked;
+    els.finishBtn.disabled = busy || sampleBlocked || !!chat?.contextMerged;
     els.finishBtn.textContent = merging ? "Updating case context…" : (chat?.contextMerged ? "Case context is up to date" : "Finish & update case context");
-    if (chat?.contextMerged && !merging) els.finishBtn.disabled = true;
     const lastReply = chat ? [...chat.messages].reverse().find((m) => m.role === "assistant") : null;
-    els.finishBtn.classList.toggle("ready", !!lastReply && lastReply.content.includes("CASE CONTEXT SUMMARY") && !chat.contextMerged);
+    els.finishBtn.classList.toggle("ready", !!lastReply && lastReply.content.includes("Project knowledge record") && !chat.contextMerged);
     renderChips();
   }
 
   function renderChips() {
     els.chips.replaceChildren();
-    els.chips.hidden = !pending.length;
+    els.chips.hidden = mode === "ask" || !pending.length;
     for (const p of pending) {
-      const chip = document.createElement("span");
-      chip.className = "chip" + (p.assetId ? "" : " busy");
-      const n = document.createElement("span"); n.className = "n";
-      n.textContent = p.assetId ? `${p.name} (${kb(p.sizeBytes)})` : `Uploading ${p.name}…`;
-      chip.append(n);
+      const chip = el("span", "chip" + (p.assetId ? "" : " busy"));
+      chip.append(el("span", "n", p.assetId ? `${p.name} (${kb(p.sizeBytes)})` : `Uploading ${p.name}…`));
       if (p.assetId) {
-        const x = document.createElement("button");
-        x.type = "button"; x.className = "x"; x.textContent = "×";
+        const x = button("x", "×", () => removePending(p));
         x.setAttribute("aria-label", "Remove " + p.name);
-        x.addEventListener("click", () => removePending(p));
         chip.append(x);
       }
       els.chips.append(chip);
@@ -680,17 +1073,264 @@
     els.input.style.height = Math.min(els.input.scrollHeight, 200) + "px";
   }
 
-  // ---------- Cases ----------
+  // ---------- Modes and navigation ----------
+  function setMode(next) {
+    if (mode === next) return;
+    if (streaming) streaming.controller.abort();
+    mode = next;
+    storageSet(MODE_KEY, next);
+    pending = [];
+    if (next === "ask") view = askTurns.length ? "ask" : "library";
+    else view = caseDoc ? (currentId ? "chat" : "case") : "picker";
+    renderMain();
+    closeSidebar();
+    if (view === "picker") els.caseInput.focus();
+  }
+
+  function openCard(code) {
+    if (streaming) streaming.controller.abort();
+    focusCode = code;
+    view = "card";
+    renderMain();
+    closeSidebar();
+    els.cardView.scrollTop = 0;
+  }
+
+  function askAbout(code) {
+    const c = libraryCase(code);
+    if (c) askSend(`Brief me on ${c.name} (${c.code}): what was it about, what came out of it, and what can a new team reuse?`, code);
+  }
+
+  function interviewOn(code) {
+    setMode("interview");
+    els.caseInput.value = code;
+    openCase(code);
+  }
+
+  async function loadLibrary() {
+    await dbReady;
+    if (!db) {
+      libraryError = "Brian can't reach the cases on file in this view. Open this page on claude.ai while signed in.";
+      libraryLoaded = false;
+      return renderMain();
+    }
+    try {
+      const snap = await db.collection("cases").get();
+      library = snap.docs.map((d) => caseFromDoc(d.id, d.data()));
+      libraryLoaded = true;
+      libraryError = "";
+    } catch (err) {
+      console.warn("Could not load the cases.", err);
+      libraryError = "Brian couldn't load the cases on file. Reload the page to try again.";
+    }
+    renderMain();
+  }
+
+  // ---------- Ask ----------
+  function cardsJson() {
+    return JSON.stringify(sortedLibrary().map((c) => ({
+      code: c.code, name: c.name, ...c.card,
+      interviewsMerged: c.merged, contextUpdated: c.contextUpdatedAt ? day(c.contextUpdatedAt) : "",
+    })));
+  }
+
+  async function caseFiles(code) {
+    if (fileCache.has(code)) return fileCache.get(code);
+    const [docs, uploads] = await Promise.all([
+      db.collection(`cases/${code}/docs`).get(),
+      db.collection(`cases/${code}/files`).get(),
+    ]);
+    const files = [
+      ...docs.docs.map((d) => {
+        const x = d.data() || {};
+        return { id: d.id, path: str(x.path) || d.id, title: str(x.title) || str(x.path) || d.id, summary: str(x.summary), text: str(x.text) || str(x.summary) };
+      }),
+      ...uploads.docs.map((d) => {
+        const x = d.data() || {};
+        const name = str(x.name) || d.id;
+        return { id: "upload:" + d.id, path: "Brian/files/" + (str(x.sharepointName) || name), title: name + " (attached in an interview)", summary: str(x.text).slice(0, 300), text: str(x.text) };
+      }),
+    ];
+    fileCache.set(code, files);
+    return files;
+  }
+
+  function chunk(text, offset) {
+    const start = Math.max(0, Math.floor(Number(offset) || 0));
+    const end = start + TOOL_CHUNK;
+    return { text: text.slice(start, end), nextOffset: end < text.length ? end : null };
+  }
+
+  function askTools(note) {
+    const findCase = (raw) => {
+      const c = libraryCase(normaliseCode(raw));
+      if (!c) throw new Error(`No case with the code ${raw} is on file. Use a code from the case cards.`);
+      return c;
+    };
+    return [
+      {
+        name: "get_case_context",
+        description: "Read the full case context (context.md) of one case on file: outcomes, lessons, documents, open questions with their status, gaps. Returns {code, text, nextOffset}; if nextOffset is not null, call again with that offset to read on. Read it before answering anything about a case beyond its card.",
+        inputSchema: { type: "object", properties: { code: { type: "string", description: "Case code from the case cards" }, offset: { type: "integer" } }, required: ["code"] },
+        execute: async (input) => {
+          const c = findCase(input.code);
+          note("context of " + c.code);
+          const text = c.context || ("No interview has been merged into this case's context yet. Open questions from the file review:\n\n" + (c.questions || "(none)"));
+          return { code: c.code, ...chunk(text, input.offset) };
+        },
+      },
+      {
+        name: "list_case_files",
+        description: "List the case files on record for one case: digests written when its SharePoint was reviewed, plus text files attached in interviews. Returns [{id, path, title, summary}]. Use it when the context doesn't answer the question.",
+        inputSchema: { type: "object", properties: { code: { type: "string" } }, required: ["code"] },
+        execute: async (input) => {
+          const c = findCase(input.code);
+          note("file list of " + c.code);
+          const files = await caseFiles(c.code);
+          return files.slice(0, 80).map((f) => ({ id: f.id, path: f.path, title: f.title, summary: f.summary.slice(0, 300) }));
+        },
+      },
+      {
+        name: "read_case_file",
+        description: "Read one case file digest or attached text file by its id from list_case_files. Returns {path, text, nextOffset}.",
+        inputSchema: { type: "object", properties: { code: { type: "string" }, id: { type: "string" }, offset: { type: "integer" } }, required: ["code", "id"] },
+        execute: async (input) => {
+          const c = findCase(input.code);
+          const f = (await caseFiles(c.code)).find((x) => x.id === String(input.id));
+          if (!f) throw new Error("No file with that id in this case. Call list_case_files first.");
+          note(f.path);
+          const text = f.text || `This file has no readable text in Brian (for example a PDF or image attached in an interview). The case team has it in the case SharePoint under ${f.path}.`;
+          return { path: f.path, ...chunk(text, input.offset) };
+        },
+      },
+    ];
+  }
+
+  // Without page tools: pick the relevant cases first, then answer with their contexts in the prompt.
+  async function pickCases(question, signal) {
+    const recent = askTurns.slice(-4).map((t) => `${t.role}: ${t.content.slice(0, 600)}`).join("\n");
+    const res = await sample.json(
+      "Pick the cases on file needed to answer the question below. Reply with only a JSON object {\"codes\": [case codes]}, " +
+      "at most 3, most relevant first, or an empty list if the case cards alone answer it (for example an overview).\n\n" +
+      `Question: ${question}\n\nEarlier in this conversation:\n${recent || "(nothing)"}\n\n<case_cards>\n${cardsJson()}\n</case_cards>`,
+      { modelTier: "quick", cache: false, signal },
+    );
+    const codes = Array.isArray(res?.codes) ? res.codes : [];
+    return codes.map(normaliseCode).filter((c) => libraryCase(c)).slice(0, 3);
+  }
+
+  function contextsBlock(codes) {
+    if (!codes.length) return "";
+    const budget = Math.floor(60000 / codes.length);
+    return "<case_contexts>\n" + codes.map((code) => {
+      const c = libraryCase(code);
+      return `<case code="${code}">\n${(c.context || "(no interview merged yet)\n" + c.questions).slice(0, budget)}\n</case>`;
+    }).join("\n") + "\n</case_contexts>";
+  }
+
+  async function askSend(text, code) {
+    text = String(text || "").trim();
+    if (!text || streaming || sampleBlocked || !prompts || !libraryLoaded) return;
+    if (!sample) return setBanner("Brian can only answer inside Claude. Open this page on claude.ai or in the Claude app.");
+    if (code) focusCode = code;
+    askTurns.push({ role: "user", content: text });
+    els.input.value = "";
+    autosize();
+    view = "ask";
+    renderMain();
+    closeSidebar();
+
+    const { row, bubble } = messageEl("assistant", "");
+    const textNode = el("span", "thinking", "Thinking…");
+    const cursor = el("span", "cursor");
+    const looked = [];
+    const lookedEl = el("span", "looked");
+    lookedEl.hidden = true;
+    bubble.append(textNode, cursor, lookedEl);
+    els.threadInner.append(row);
+    scrollToBottom(true);
+
+    const controller = new AbortController();
+    streaming = { kind: "ask", controller };
+    updateComposer();
+    renderSidebar();
+
+    const note = (what) => {
+      if (!looked.includes(what)) looked.push(what);
+      lookedEl.textContent = "Looked at: " + looked.join(" · ");
+      lookedEl.hidden = false;
+      if (textNode.classList.contains("thinking")) textNode.textContent = "Reading the " + what + "…";
+    };
+
+    let reply = "";
+    let errorMessage = null;
+    try {
+      const useTools = !!sampleLimits?.tools;
+      let block = "";
+      if (!useTools) {
+        textNode.textContent = "Choosing the relevant cases…";
+        const codes = await pickCases(text, controller.signal);
+        codes.forEach((c) => note("context of " + c));
+        block = contextsBlock(codes);
+      }
+      const focus = libraryCase(focusCode);
+      const rules = fill(prompts.ask, {
+        TODAY: day(Date.now()),
+        FOCUS: focus ? `The person last opened the case ${focus.name} (${focus.code}). A question that names no case is probably about this one.` : "",
+        TOOLS_NOTE: useTools
+          ? "Tools: get_case_context(code) reads a case's full context in parts; list_case_files(code) lists digests of its files and files attached in interviews; read_case_file(code, id) reads one. Read only what the question needs: usually one or a few contexts, and at most a few files."
+          : "The contexts of the cases most likely to matter are included in <case_contexts>. You cannot open case files in this view; if the answer depends on one, name the file to look at.",
+        CASE_CARDS: cardsJson(),
+        CASE_CONTEXTS: block,
+      });
+      const turns = askTurns.map((t) => ({ role: t.role, content: t.content }));
+      let size = rules.length + turns.reduce((n, t) => n + t.content.length, 0);
+      while (turns.length > 1 && size > MAX_INPUT_CHARS) size -= turns.shift().content.length;
+      while (turns.length && turns[0].role !== "user") turns.shift();
+      const opts = {
+        model: MODEL, modelTier: "default", cache: false, signal: controller.signal,
+        onText: ({ text: whole }) => {
+          reply = whole;
+          textNode.className = "";
+          textNode.textContent = whole;
+          scrollToBottom(false);
+        },
+      };
+      if (useTools) opts.tools = askTools(note);
+      const result = await sample([{ role: "user", content: rules }, ...turns], opts);
+      reply = result.text;
+    } catch (e) {
+      reply = e && e.code === "refused" ? "" : (e && typeof e.text === "string" ? e.text : reply);
+      errorMessage = handleSampleError(e);
+    } finally {
+      cursor.remove();
+      streaming = null;
+    }
+
+    if (reply.trim()) {
+      textNode.className = "";
+      textNode.textContent = reply;
+      askTurns.push({ role: "assistant", content: reply, looked });
+    } else {
+      row.remove();
+    }
+    if (errorMessage && view === "ask") {
+      els.threadInner.append(messageEl("error", errorMessage).row);
+      scrollToBottom(true);
+    }
+    updateComposer();
+    renderSidebar();
+  }
+
+  // ---------- Get asked: cases ----------
   async function openCase(raw) {
     els.caseError.hidden = true;
     const code = normaliseCode(raw);
     if (!code) return showCaseError("Enter a case code using letters, digits and dashes.");
     els.openCaseBtn.disabled = true;
     await dbReady;
-    els.openCaseBtn.disabled = false;
-    if (!db) return showCaseError("Brian can't reach the case data in this view. Open this page on claude.ai while signed in.");
-    els.openCaseBtn.disabled = true;
     try {
+      if (!db) return showCaseError("Brian can't reach the case data in this view. Open this page on claude.ai while signed in.");
       const snap = await db.doc("cases/" + code).get();
       if (!snap.exists) {
         return showCaseError(`No case with the code ${code} is set up in Brian yet. Ask the case team to run "/brian review ${code}" in Claude Code.`);
@@ -729,7 +1369,7 @@
     els.caseInput.focus();
   }
 
-  // ---------- Interviews ----------
+  // ---------- Get asked: interviews ----------
   function selectChat(id) {
     if (streaming) streaming.controller.abort();
     currentId = id;
@@ -749,23 +1389,31 @@
     renderMain();
   }
 
-  // Claude sees the interviewer prompt (with the case's questions and context) as a leading turn,
-  // then the conversation, with attached files described and small text files given in full.
+  // Claude sees the interview instructions (with the case's open questions, current context and the
+  // elapsed time) as a leading turn, then the conversation, with attached files described and small
+  // text files given in full.
   function turnText(m) {
     let text = m.content;
     for (const f of m.files || []) {
       if (f.inline) text += `\n\n[Attached file: ${f.name}]\n<<<\n${f.inline}\n>>>`;
       else if (f.contentType.startsWith("image/")) text += `\n\n[Attached image: ${f.name}]`;
-      else text += `\n\n[Attached file: ${f.name} (${f.contentType || "file"}, ${kb(f.sizeBytes)}). It is saved to the case files, but you cannot read its content in this chat.]`;
+      else text += `\n\n[Attached file: ${f.name} (${f.contentType || "file"}, ${kb(f.sizeBytes)}). It was received and saved with the case, but you cannot read its content in this chat.]`;
     }
     return text.trim() || "(no text)";
   }
 
+  function elapsedText(chat) {
+    const started = chat.messages[0]?.at || chat.createdAt || Date.now();
+    const mins = Math.max(0, Math.round((Date.now() - started) / 60000));
+    return `${mins} minute${mins === 1 ? "" : "s"} since the interview started (it is now ${hhmm(Date.now())}).`;
+  }
+
   function buildInput(chat) {
-    const rules = fill(prompts.system, {
+    const rules = fill(prompts.interview, {
       CASE_CODE: caseCode,
       CASE_NAME: caseDoc.caseName || caseCode,
       INTERVIEW_NUMBER: chats.filter((c) => c.createdAt <= chat.createdAt).length,
+      ELAPSED: elapsedText(chat),
       CASE_CONTEXT: caseDoc.context || "(empty: no interview has been merged yet)",
       OPEN_QUESTIONS: caseDoc.questions || "(no open questions file)",
     });
@@ -786,9 +1434,11 @@
       case "rate_limited": return "You've reached a usage or rate limit. Wait a little, then try again.";
       case "session_expired": return "Your Claude session expired. Sign in again and reload the page.";
       case "refused": return "Brian can't help with that request.";
-      case "prompt_too_large": return "This interview has grown too long. Finish it and start a new interview.";
+      case "prompt_too_large": return "This conversation has grown too long. Start a new one.";
       case "empty_completion": return "Brian didn't write a reply. Try rephrasing your message.";
       case "images_unavailable": return "Images can't be sent to Claude in this view. The file is still saved to the case.";
+      case "tools_unavailable": return "Brian can't open case files in this view. Reload the page and try again.";
+      case "invalid_json": return "Brian couldn't pick the relevant cases. Try asking again.";
       default: return "Brian couldn't reach Claude just now. Try again.";
     }
   }
@@ -826,9 +1476,10 @@
     for (const f of files) {
       persist(() => db.doc(`cases/${caseCode}/files/${f.assetId}`).set({
         name: f.name, contentType: f.contentType, sizeBytes: f.sizeBytes, chatId: chat.id,
-        uploadedAt: Date.now(), uploadedBy: uid || "",
+        uploadedAt: Date.now(), uploadedBy: uid || "", text: f.inline || "",
       }));
     }
+    fileCache.delete(caseCode);
 
     els.input.value = "";
     autosize();
@@ -836,17 +1487,14 @@
     renderMain();
 
     const { row, bubble } = messageEl("assistant", "");
-    const textNode = document.createElement("span");
-    textNode.className = "thinking";
-    textNode.textContent = "Thinking…";
-    const cursor = document.createElement("span");
-    cursor.className = "cursor";
+    const textNode = el("span", "thinking", "Thinking…");
+    const cursor = el("span", "cursor");
     bubble.append(textNode, cursor);
     els.threadInner.append(row);
     scrollToBottom(true);
 
     const controller = new AbortController();
-    streaming = { chatId: chat.id, controller };
+    streaming = { kind: "interview", controller, chatId: chat.id };
     updateComposer();
     renderSidebar();
 
@@ -893,7 +1541,7 @@
     renderSidebar();
   }
 
-  // ---------- Case context ----------
+  // ---------- Get asked: case context and card ----------
   function transcriptBody(chat) {
     const out = [];
     for (const m of chat.messages) {
@@ -911,7 +1559,7 @@
     merging = true;
     updateComposer();
     renderSidebar();
-    const status = messageEl("status", "Updating the case context with this interview…");
+    const status = messageEl("status", "Merging this interview into the case context…");
     els.threadInner.append(status.row);
     scrollToBottom(true);
     let outcome;
@@ -935,12 +1583,33 @@
       if (prompt.length > MAX_INPUT_CHARS) throw { code: "prompt_too_large" };
       const result = await sample(prompt, { model: MODEL, modelTier: "default", cache: false });
       const context = result.text.replace(/^```(?:markdown|md)?\s*\n/, "").replace(/\n```\s*$/, "").trim();
+
+      status.bubble.textContent = "Updating the case card…";
+      let card = current.card && typeof current.card === "object" ? current.card : null;
+      try {
+        const extracted = await sample.json(fill(prompts.card, {
+          CASE_CODE: caseCode, CASE_NAME: current.caseName || caseCode,
+          CURRENT_CARD: JSON.stringify(current.card || {}), CONTEXT: context,
+        }), { modelTier: "quick", cache: false });
+        if (extracted && typeof extracted === "object" && !Array.isArray(extracted)) {
+          card = { ...normCard(extracted, current.questions), updatedAt: Date.now() };
+        }
+      } catch (e) {
+        console.warn("The case card was not updated.", e);
+      }
+
       const now = Date.now();
-      await persist(() => db.doc("cases/" + caseCode).update({ context, contextUpdatedAt: now, mergedChats: [...merged] }));
+      const update = { context, contextUpdatedAt: now, mergedChats: [...merged] };
+      if (card) update.card = card;
+      await persist(() => db.doc("cases/" + caseCode).update(update));
       await persist(() => chatRef(chat.id).update({ contextMerged: true, contextMergedAt: now }));
-      caseDoc = { ...caseDoc, context, contextUpdatedAt: now, mergedChats: [...merged] };
+      caseDoc = { ...caseDoc, ...update };
       chat.contextMerged = true;
-      outcome = "The case context now includes this interview. Claude Code copies it to the case SharePoint at the next sync.";
+      if (libraryLoaded) {
+        const entry = caseFromDoc(caseCode, { ...current, ...update });
+        library = library.filter((c) => c.code !== caseCode).concat(entry);
+      }
+      outcome = "The case context and case card now include this interview, so it shows up in Brian Ask. Claude Code copies it to the case SharePoint at the next sync.";
     } catch (e) {
       outcome = (e && e.code ? handleSampleError(e) : null) || "Brian couldn't update the case context. Try again in a moment.";
     } finally {
@@ -967,7 +1636,7 @@
       "Messages: " + chat.messages.length,
       "",
       "Speakers: \"Brian\" is the AI interviewer; \"Interviewee\" is the case team member.",
-      "Each settled question ends with a \"Recorded for Qnn:\" line.",
+      "The interview closes with a \"# Project knowledge record\"; settled open questions have a \"Recorded for Qnn:\" line.",
       "",
       "=".repeat(60),
       "",
@@ -1029,10 +1698,25 @@
   function closeSidebar() { document.body.classList.remove("sidebar-open"); }
 
   // ---------- Events ----------
+  els.modeAsk.addEventListener("click", () => setMode("ask"));
+  els.modeInterview.addEventListener("click", () => setMode("interview"));
+  els.newAsk.addEventListener("click", () => {
+    if (streaming) return;
+    askTurns = [];
+    focusCode = "";
+    view = "library";
+    renderMain();
+    closeSidebar();
+    els.input.focus();
+  });
   els.caseForm.addEventListener("submit", (e) => { e.preventDefault(); openCase(els.caseInput.value); });
-  els.composer.addEventListener("submit", (e) => { e.preventDefault(); send(); });
+  els.composer.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (mode === "ask") askSend(els.input.value, view === "card" ? focusCode : "");
+    else send();
+  });
   els.input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); els.composer.requestSubmit(); }
   });
   els.input.addEventListener("input", () => { autosize(); updateComposer(); });
   els.stopBtn.addEventListener("click", () => { if (streaming) streaming.controller.abort(); });
@@ -1049,16 +1733,22 @@
   els.fileInput.addEventListener("change", () => { addFiles(els.fileInput.files); els.fileInput.value = ""; });
   els.menuBtn.addEventListener("click", openSidebar);
   els.scrim.addEventListener("click", closeSidebar);
+  for (const s of SUGGESTIONS) els.suggestions.append(button("suggestion", s, () => askSend(s)));
 
   // ---------- Start ----------
   els.caseInput.value = storageGet(LAST_CASE_KEY);
   renderMain();
-  els.caseInput.focus();
+  if (view === "picker") els.caseInput.focus();
 
-  Promise.all([
-    fetch("system_prompt.txt").then((r) => (r.ok ? r.text() : Promise.reject(r.status))),
-    fetch("context_prompt.txt").then((r) => (r.ok ? r.text() : Promise.reject(r.status))),
-  ]).then(([system, context]) => { prompts = { system, context }; updateComposer(); })
+  const dbReady = Promise.all([use("db"), use("user")]).then(async ([d, u]) => {
+    db = d;
+    try { uid = u ? await u.id() : null; } catch { uid = null; }
+    els.storeNote.textContent = d ? "Cases and interviews are shared with everyone who can open this page." : "";
+  });
+
+  const fetchText = (path) => fetch(path).then((r) => (r.ok ? r.text() : Promise.reject(new Error(path + " " + r.status))));
+  Promise.all(["interview_prompt.txt", "context_prompt.txt", "card_prompt.txt", "ask_prompt.txt"].map(fetchText))
+    .then(([interview, context, card, ask]) => { prompts = { interview, context, card, ask }; updateComposer(); })
     .catch((err) => { console.warn("Could not load prompts.", err); setBanner("Brian couldn't load its instructions. Reload the page to try again."); });
 
   use("sample").then(async (s) => {
@@ -1068,10 +1758,6 @@
   });
   use("downloads").then((d) => { downloads = d; updateComposer(); });
   use("assets").then((a) => { assets = a; updateComposer(); });
-  const dbReady = Promise.all([use("db"), use("user")]).then(async ([d, u]) => {
-    db = d;
-    try { uid = u ? await u.id() : null; } catch { uid = null; }
-    els.storeNote.textContent = d ? "Interviews are shared with everyone who can open this page." : "";
-  });
+  loadLibrary();
 })();
 </script>

@@ -1,6 +1,6 @@
 # /brian sync <case code>
 
-Goal: everything Brian collected for the case is in the case SharePoint: an up-to-date `Brian/context.md`, raw transcripts and uploaded files.
+Goal: everything Brian collected for the case is in the case SharePoint (an up-to-date `Brian/context.md`, raw transcripts and uploaded files), and the case card in the library reflects the latest context.
 
 Order matters: merge first, so transcripts written in the same run show the right "Merged into case context" line.
 
@@ -21,13 +21,15 @@ Order matters: merge first, so transcripts written in the same run show the righ
 Interviews are normally merged in the artifact when someone clicks "Finish & update case context". Catch the rest here.
 
 1. `get` `cases/<CODE>` and note its `version`.
-2. Find interviews with at least one Brian reply where `contextMerged` isn't true and the id isn't in `mergedChats`. If there are none, go to step 4.
+2. Find interviews with at least one Brian reply where `contextMerged` isn't true and the id isn't in `mergedChats`. If there are none, go to item 7.
 3. Tell the user which interviews you'll merge. Merge them one at a time, oldest first, following the rules and structure in [template/context_prompt.txt](template/context_prompt.txt) as if you were that prompt: the current context plus the interview's transcript gives the new context. Use only what the transcript says.
-4. Write the result with one `ArtifactData` `batch`, so the context and the interview's flag change together:
-   - `update` `cases` / `<CODE>`: `context`, `contextUpdatedAt` (now, epoch ms), `mergedChats` (with the merged ids added), `if_version` from step 1;
-   - `update` `cases/<CODE>/chats` / `<id>`: `contextMerged: true`, `contextMergedAt` (now), `if_version` from step 2.
+4. Refresh the case card from the new context, following [template/card_prompt.txt](template/card_prompt.txt) as if you were that prompt.
+5. Write the result with one `ArtifactData` `batch`, so the context, the card and the interview's flag change together:
+   - `update` `cases` / `<CODE>`: `context`, `contextUpdatedAt` (now, epoch ms), `mergedChats` (with the merged ids added), `card` (with `updatedAt`), `if_version` from step 1;
+   - `update` `cases/<CODE>/chats` / `<id>`: `contextMerged: true`, `contextMergedAt` (now), `if_version` from section 2.
    Put long text in a JSON file and pass `file_path`. If the batch is refused because a document changed, re-read it and redo the merge on the new version.
-5. Re-read the merged interviews (step 2.1) so the saved files carry the new flags and versions.
+6. Re-read the merged interviews (step 2.1) so the saved files carry the new flags and versions.
+7. Consolidate when it helps. After several debriefs, or when the context has grown repetitive, rewrite it once from all transcripts and the case files together, following the same rules and structure: tighten the case card and summary, link outcomes to lessons and documents, add file paths as sources where an inspected file supports a statement, and flag conflicts. Keep every fact, source and change-log entry, and add a change-log line "Consolidated by Claude Code sync". Write it like step 5.
 
 ## 4. Transcripts → `Brian/raw_transcripts/`
 

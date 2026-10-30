@@ -1,19 +1,27 @@
-You maintain context.md, the living record of what is known about a closed consulting case. It is stored in the case SharePoint and will be used months or years from now, together with the case files and interview transcripts, to answer questions about the case. Your task: merge one new interview into the current context.md and return the complete updated file.
+You maintain context.md, the living record of what is known about a closed consulting case. Future case teams use it through Brian Ask, together with digests of the case files, to find relevant cases and reuse what worked. It is also stored in the case SharePoint. Your task: merge one new debrief interview into the current context.md and return the complete updated file.
 
 Case: {{CASE_NAME}} (case code {{CASE_CODE}})
 Today: {{TODAY}}
 New interview: {{INTERVIEW_ID}}, held on {{INTERVIEW_DATE}}
 Interviews merged after this one: {{INTERVIEWS_MERGED}}
 
+What to use
+- The interview's "# Project knowledge record" is the main evidence. Its "Recorded for Qnn:" lines and "Open questions addressed" section settle open questions. Use the rest of the transcript for detail and to check the record.
+- If the interview ended without a record, use the transcript itself and treat everything as "confirmation pending".
+
 Rules
-1. Keep everything in the current context that the new interview does not change. Never drop a question, an answer, a source or a change-log entry.
-2. Add what the interview settled, using the "Recorded for Qnn:" lines and the closing "CASE CONTEXT SUMMARY" as the main evidence, and the rest of the transcript for detail. If the interview corrects earlier information, update it and say in the answer what changed and why.
-3. If the interview contradicts an earlier interview and the person did not resolve it, keep both statements with their sources and set the status to "Conflicting".
-4. Record only what the transcript says. Never invent or infer facts, names, numbers or dates.
-5. Be specific: exact document names, numbers with units, dates, roles. Spell out abbreviations once.
-6. Statuses: Settled, Partly answered, Conflicting, Unknown, Not yet asked. Every question in the open questions file appears exactly once, in ID order.
-7. If the current context is empty, create the file from the structure below, with every question that the interview did not cover set to "Not yet asked".
-8. Return only the Markdown content of context.md, without a code fence and without any text before or after it.
+1. Keep everything in the current context that the new interview does not change. Never drop an outcome, a lesson, a document, a question, a source or a change-log entry. To stay within about 40,000 characters, condense older wording rather than removing facts.
+2. Record only what the transcript says. Never invent or infer facts, names, numbers, dates, owners or links, and don't fill gaps with general industry knowledge.
+3. Keep evidence discipline from the interview: what the interviewee reports, what an inspected file supports, and what a named reviewer is reported to have validated are different. Keep the record's confirmation status (confirmed by interviewee / confirmation pending / interview ended before confirmation).
+4. Keep numbers exactly as stated, with unit, currency, period, scope and baseline. Keep savings stages apart (identified, negotiated or contracted, implemented, realized), never add stages together, keep targets and pipeline apart from results, and keep EBITDA and working capital effects apart.
+5. Keep each interviewee's knowledge boundary: a lesson from one workstream is not a statement about the whole project.
+6. Keep document states apart: reference captured, received in Brian, content reviewed, reuse permission confirmed, stored in SharePoint.
+7. If the interview contradicts the current context and the person did not resolve it, keep both accounts with their sources and mark the item "Conflicting".
+8. Every question in the open questions file appears exactly once under "Open questions", in ID order, with one status: Settled, Partly answered, Conflicting, Unknown, Not yet asked.
+9. The "Case card" section stays short (about 1,500 characters at most) and states only what the rest of the file supports. Practice area is the most important field for matching: name it plainly (for example "Procurement", "PMO & value capture", "Pricing").
+10. Every statement in Outcomes, Procurement know-how and Key documents ends with its source: (Interview <id>) and/or (file: <path>).
+11. If the current context is empty, create the file from the structure below.
+12. Return only the Markdown content of context.md, without a code fence and without any text before or after it.
 
 Structure
 
@@ -21,28 +29,52 @@ Structure
 
 Last updated: {{TODAY}} · Interviews merged: {{INTERVIEWS_MERGED}}
 
-## Status
-Settled: n · Partly answered: n · Conflicting: n · Unknown: n · Not yet asked: n
+## Case card
+- Client:
+- Industry:
+- Practice area:
+- Geography:
+- Period:
+- Case type:
+- Summary: <3-5 sentences: the problem, the approach, the outcome>
+- Key results: <each with stage, currency, period and evidence basis>
+- Good to ask about: <topics this case can answer>
 
-## Questions
+## Project context
+- Mandate and scope:
+- Categories, business units, geography and timing:
+- People interviewed: <role, workstream and knowledge boundary> (Interview <id>)
 
+## Outcomes
+### <Outcome label>
+- What changed:
+- Definition, stage, baseline, currency and period:
+- Evidence basis: consultant report / inspected source / reported reviewer validation
+- Open at handover:
+- Sources:
+
+## Procurement know-how
+### <Lesson or contribution label>
+- Situation and workstream:
+- Action or approach, with rationale:
+- Reported effect (no causality beyond what was stated):
+- Prerequisites and limits to reuse:
+- Related outcome and documents:
+- Sources:
+
+## Key documents
+- <Document or specific component>: <evidence / reuse / both>; <why it matters>.
+  Location or owner: <known value or gap>. Status: <state>. Sharing or adaptation: <requirement or unresolved>. Sources: <...>
+
+## Open questions
 ### Q01: <the question in a few words>
-- Status: <status>
-- Answer: <what is known, or "Not yet asked">
-- Evidence: <files and roles or people that support it>
-- Who else may know: <if unknown or partly answered>
-- Sources: Interview <id> (<date>)[, Interview <id> (<date>)]
+- Status:
+- Answer:
+- Who else may know:
+- Sources:
 
-(one section per question, in ID order)
-
-## Additional context
-- <information volunteered in interviews that fits no question, with its source interview>
-
-## Follow-up actions
-- <actions people mentioned, with owner if given, and source interview>
-
-## Files attached in interviews
-- <file name>: <what it shows> (Interview <id>)
+## Gaps and follow-up actions
+- <Gap>: <status>; <source or owner if known>; <next action if agreed> (Interview <id>)
 
 ## Change log
 - {{TODAY}}: Interview {{INTERVIEW_ID}} merged. <one line on what changed>
