@@ -7,8 +7,8 @@ description: Set up and sync Brian, the case-knowledge assistant, for a closed c
 
 Brian has two modes, toggled in one artifact on claude.ai (the **Brian library**):
 
-- **Get asked**: a case team member enters the case code and is debriefed. The interview follows the team's procurement-project-debrief skill (time first, four linked blocks: project context, outcomes, procurement know-how, key documents) and ends with a project knowledge record. "Finish & update case context" merges it into the case's living context and refreshes its case card.
-- **Ask**: any case team can ask about past cases: an overview of all cases on file, the cases most relevant to a new one (matched on practice area first), one case in depth, or a lesson across cases. Brian answers from the case cards and contexts, and opens file digests when the context isn't enough.
+- **Get asked**: a case team member enters the case code and is debriefed, either step by step or with all questions at once (one list to answer in one go, often dictated, with follow-ups as one list too). The interview follows the team's procurement-project-debrief skill (time first in step-by-step mode, four linked blocks: project context, outcomes, procurement know-how, key documents) and ends with a project knowledge record. "Finish & update case context" merges it into the case's living context and refreshes its case card.
+- **Ask**: any case team can ask about past cases: an overview of all cases on file, the cases most relevant to a new one (matched on practice area first), one case in depth, or a lesson across cases. Brian answers from the case cards and contexts, opens file digests when the context isn't enough, and, guided by the context and digests, opens the original files in the case SharePoint through the asking person's Microsoft 365 connector (their own permissions; only the pages, slides or sheets that matter).
 
 Three parts work together:
 
@@ -44,9 +44,9 @@ All paths are in the Brian library artifact.
 
 | Path | Written by | Fields |
 |---|---|---|
-| `cases/<CODE>` | review (questions, first card), artifact and sync (context, card) | `caseCode`, `caseName`, `questions` (full text of open_questions.txt), `questionsUpdatedAt`, `card` (see formats.md), `context` (full context.md), `contextUpdatedAt`, `mergedChats` (interview ids already in the context), `sharepointFolder` (folder name only) |
+| `cases/<CODE>` | review (questions, first card), artifact and sync (context, card) | `caseCode`, `caseName`, `questions` (full text of open_questions.txt), `questionsUpdatedAt`, `card` (see formats.md), `context` (full context.md), `contextUpdatedAt`, `mergedChats` (interview ids already in the context), `sharepointFolder` (folder name only), `sharepoint` (`{driveId, folderPath, name}`: where Brian Ask opens the original files) |
 | `cases/<CODE>/docs/<docId>` | review | File digests for Brian Ask: `path`, `title`, `type`, `summary`, `text`, `modifiedAt` |
-| `cases/<CODE>/chats/<id>` | artifact; sync adds `syncedAt` | `title`, `createdAt`, `updatedAt`, `author` (opaque user id), `messages` [`role`, `content`, `at`, `files`], `contextMerged`, `contextMergedAt` |
+| `cases/<CODE>/chats/<id>` | artifact; sync adds `syncedAt` | `title`, `createdAt`, `updatedAt`, `author` (opaque user id), `mode` (`step` or `batch`), `messages` [`role`, `content`, `at`, `files`], `contextMerged`, `contextMergedAt` |
 | `cases/<CODE>/files/<assetId>` | artifact; sync adds `syncedAt`, `sharepointName` | `name`, `contentType`, `sizeBytes`, `chatId`, `uploadedAt`, `uploadedBy`, `text` (for text files) |
 
 Times are epoch milliseconds. Every write to an existing document must pass the `if_version` you last read; if it fails, re-read and redo that write. Everyone the library is shared with can read every case in it: client names may show, and every case team member may run debriefs.

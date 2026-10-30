@@ -41,6 +41,7 @@ Case: <case name>
 Interview: <id8>
 Interviewee: <display name, or "Team member">
 Interview started: <YYYY-MM-DD HH:MM>
+Interview mode: <step by step | all questions at once>
 Transcript saved: <YYYY-MM-DD HH:MM>
 Messages: <n>
 Merged into case context: <yes, on YYYY-MM-DD | no>
@@ -103,9 +104,23 @@ The structured version of the context's case card, shown in Brian Ask and used t
 
 `area` is the practice area and the first matching criterion: keep the names consistent across cases ("Procurement", "PMO & value capture", "Pricing", ...).
 
+## SharePoint location (`sharepoint` in `cases/<CODE>`)
+
+Where Brian Ask opens the case's original files, through the asking person's Microsoft 365 connector and with their own SharePoint permissions. Written by `/brian review`.
+
+```json
+{
+  "driveId": "b!...",
+  "folderPath": "Cases/Lighthouse-Nordwerk",
+  "name": "Lighthouse-Nordwerk"
+}
+```
+
+`folderPath` is relative to the drive root, without the document-library segment ("Shared Documents"). A file is opened at `file:///<driveId>/<folderPath>/<path>`, where `<path>` is the path in its digest.
+
 ## File digest (`cases/<CODE>/docs/<docId>`)
 
-Written by `/brian review` so Brian Ask can open case files when a context isn't enough.
+Written by `/brian review` so Brian Ask can answer from case files when a context isn't enough, and knows where to look in the original. End `text` with a map of the original: slides, worksheets or sections, and what detail is only there.
 
 ```json
 {

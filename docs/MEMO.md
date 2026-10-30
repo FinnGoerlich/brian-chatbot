@@ -23,6 +23,7 @@ Keep the product curated rather than exhaustive, consistent with the original br
 - **Ask about time first.** "How many minutes do you have? I'll help you quickly log your project contribution and identify the files worth handing over." Wait for the answer before asking about the project. Brian passes the real elapsed time (from message timestamps) to the interviewer, so it can keep to the budget.
 - **Set a short agenda.** Cover the person's contribution, key outcome, reusable lesson and useful files. Proposed formats to test: 2-3 minutes for quick capture or 5-7 minutes for a focused debrief; these are not established benchmarks.
 - **Follow the useful contribution.** Ask one focused question at a time. Extract information across all blocks from each answer. Do not restart generic context questions after the person has offered a valuable lesson.
+- **Offer a faster format.** At the start, the person can choose "all questions at once" instead of step by step: Brian sends the whole numbered list, the person answers in one go (dictating works well), and follow-ups come back as one list, usually for one or two rounds, before the usual recap and record. The time question is skipped in this format; the list is the agenda.
 - **Use what is already known.** The case is known from its case code, so Brian doesn't ask which project it is. The open questions from the SharePoint review and earlier debriefs of the same case act as a map of material gaps, not a questionnaire.
 - **Condense, clarify and connect.** Organize unstructured answers without strengthening claims. Clarify material ambiguities and separate reported outcomes from supporting evidence.
 - **Identify documents early, then close.** Ask which file would substantiate or transfer the contribution; the person can attach it in the chat. When time is short, reduce coverage, recap what is known and ask what should be corrected.
@@ -51,14 +52,14 @@ The blocks are a coverage map, not four mandatory questionnaires. No asset quota
 |---|---|---|
 | Debrief ("Get asked") | Brian library artifact, `interview_prompt.txt` | The skill's interview, adapted: case code instead of "which project", open questions and earlier debriefs as the gap map, real elapsed time, file attachments, a "# Project knowledge record" at the close |
 | Living case context | `context_prompt.txt`, `card_prompt.txt` | "Finish & update case context" merges the record into the case's context.md (four blocks, open questions, gaps, change log) and refreshes its case card |
-| Brian Ask | Same artifact, `ask_prompt.txt` | Overview of all cases, matching a new case to past ones (practice area first), one case in depth, lessons across cases; reads case contexts and file digests on demand |
+| Brian Ask | Same artifact, `ask_prompt.txt` | Overview of all cases, matching a new case to past ones (practice area first), one case in depth, lessons across cases; reads case contexts and file digests on demand, and opens original SharePoint files (specific slides, sheets or pages, guided by the context) through the asker's Microsoft 365 connector |
 | SharePoint review and sync | Claude Code `brian` skill | Reads the case SharePoint into open questions, a first case card and file digests; copies transcripts, attached files and context.md back into the case's `Brian/` folder |
 
 ### 6. Demo scope and expansion potential
 
 | Status | What to show or build |
 |---|---|
-| Working in the demo | Time-first debrief with adaptive follow-ups and the capture template; file attachments in the chat (text and images read, PDFs stored); merging into the living case context and card; Brian Ask with case cards, overview, matching and file look-up; SharePoint review and sync through Claude Code. Behavior still needs testing with real users and real cases. |
+| Working in the demo | Time-first debrief with adaptive follow-ups and the capture template; file attachments in the chat (text and images read, PDFs stored); merging into the living case context and card; Brian Ask with case cards, overview, matching, file digests and live reads of original SharePoint files with the asker's own permissions; SharePoint review and sync through Claude Code. Behavior still needs testing with real users and real cases. |
 | Prototype candidates | A live view of the record being populated during the interview; reading Word, Excel and PowerPoint files inside the chat; per-case access control in Brian Ask. |
 | Future roadmap | Storing straight into SharePoint without a sync step, scheduled follow-ups, reusable starter packs, search across hundreds of cases. Each requires implementation and appropriate access. |
 

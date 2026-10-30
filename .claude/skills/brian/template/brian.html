@@ -336,6 +336,19 @@
   }
   .start-btn:hover:not(:disabled) { filter: brightness(1.1); }
   .start-btn:disabled { opacity: 0.45; }
+  .start-options {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;
+    width: 100%; max-width: 560px; margin-top: 14px; text-align: left;
+  }
+  .start-option {
+    display: flex; flex-direction: column; gap: 6px;
+    background: var(--surface); border: 1px solid var(--border-strong); border-radius: 14px;
+    padding: 14px 16px; text-align: left;
+  }
+  .start-option:hover:not(:disabled) { border-color: var(--accent-light); }
+  .start-option:disabled { opacity: 0.45; }
+  .start-option b { font-size: 15px; color: var(--accent-light); }
+  .start-option span { font-size: 13px; color: var(--text-muted); }
 
   /* Composer */
   .composer {
@@ -382,6 +395,7 @@
     max-height: 200px;
     outline: none;
   }
+  textarea.batch { max-height: 50vh; }
   textarea::placeholder { color: var(--text-muted); }
   .send, .stop { border: none; border-radius: 10px; padding: 8px 14px; font-weight: 600; }
   .send { background: var(--accent); }
@@ -495,7 +509,16 @@
     <span class="logo-slot"></span>
     <h1 id="caseTitle"></h1>
     <p id="caseSummary"></p>
-    <button type="button" class="start-btn" id="startBtn">Start a new interview</button>
+    <div class="start-options" role="group" aria-label="How do you want to be interviewed?">
+      <button type="button" class="start-option" id="startBtn">
+        <b>Step by step</b>
+        <span>Brian asks how much time you have, then one question at a time, and follows up as you go.</span>
+      </button>
+      <button type="button" class="start-option" id="startBatchBtn">
+        <b>All questions at once</b>
+        <span>Get the full list, answer it in one go (dictating works well), and get any follow-ups as one list too.</span>
+      </button>
+    </div>
   </div>
 
   <div class="thread" id="thread" hidden>
@@ -536,11 +559,17 @@
   // The /brian skill in Claude Code loads questions, cards and file digests, and mirrors results to SharePoint.
   const MODEL = "claude-sonnet-5-5";
   const START_MESSAGE = "Hi Brian, let's start.";
+  const START_BATCH_MESSAGE = "Hi Brian, please give me all the questions at once. I'll answer them in one go.";
+  const MODE_TEXT = {
+    step: "step by step (one question at a time).",
+    batch: "all at once (batch mode: the full list of questions in one message, follow-ups as one list).",
+  };
   const LAST_CASE_KEY = "brian.lastCase";
   const MODE_KEY = "brian.mode";
   const MAX_INPUT_CHARS = 200000;    // the platform caps input at 256 KiB
   const MAX_INLINE_TEXT = 30000;     // text files up to this size are given to Claude in full
   const TOOL_CHUNK = 20000;          // tool results are capped at 32 KB
+  const M365 = "Microsoft 365";      // connector display name, as declared in the manifest
   const AREA_COLOURS = 5;
   const PERMANENT_ERRORS = new Set(["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"]);
   const FILE_TYPES = {
@@ -571,7 +600,7 @@
   for (const id of ["sidebar", "modeAsk", "modeInterview", "askSide", "newAsk", "caseList", "interviewSide", "caseBlock",
     "caseCodeLabel", "caseNameLabel", "contextBtn", "changeCaseBtn", "newChat", "listLabel", "chatList", "storeNote", "scrim",
     "menuBtn", "topTitle", "banner", "libraryView", "libIntro", "areaFilters", "cardGrid", "cardView", "cardDetail",
-    "pickerView", "caseForm", "caseInput", "openCaseBtn", "caseError", "caseView", "caseTitle", "caseSummary", "startBtn",
+    "pickerView", "caseForm", "caseInput", "openCaseBtn", "caseError", "caseView", "caseTitle", "caseSummary", "startBtn", "startBatchBtn",
     "thread", "threadInner", "composer", "suggestions", "chips", "attachBtn", "fileInput", "input", "sendBtn", "stopBtn",
     "composerNote", "saveBtn", "finishBtn"]) els[id] = $(id);
 
@@ -636,6 +665,9 @@
       questions: typeof d.questions === "string" ? d.questions : "",
       contextUpdatedAt: Number(d.contextUpdatedAt) || 0,
       merged: Array.isArray(d.mergedChats) ? d.mergedChats.length : 0,
+      sharepoint: d.sharepoint && str(d.sharepoint.driveId) && str(d.sharepoint.folderPath)
+        ? { driveId: str(d.sharepoint.driveId), folderPath: str(d.sharepoint.folderPath).replace(/^\/+|\/+$/g, "") }
+        : null,
     };
   }
 
@@ -646,6 +678,7 @@
       title: typeof c.title === "string" && c.title ? c.title : "Interview",
       createdAt: Number(c.createdAt) || 0,
       author: typeof c.author === "string" ? c.author : "",
+      mode: c.mode === "batch" ? "batch" : "step",
       contextMerged: !!c.contextMerged,
       messages: c.messages
         .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
@@ -660,7 +693,7 @@
   }
 
   // ---------- State ----------
-  let db = null, uid = null, sample = null, sampleLimits = null, downloads = null, assets = null;
+  let db = null, uid = null, sample = null, sampleLimits = null, downloads = null, assets = null, mcp = null;
   let prompts = null;
   let mode = storageGet(MODE_KEY) === "interview" ? "interview" : "ask";
   let view = mode === "ask" ? "library" : "picker";   // library | card | ask | context | picker | case | chat
@@ -676,6 +709,7 @@
   let contextCode = "";
   let askTurns = [];               // { role, content, looked? }
   const fileCache = new Map();
+  const spCache = new Map();       // SharePoint reads of this visit, by address and pages
 
   // Get asked
   let caseCode = "", caseDoc = null;
@@ -685,6 +719,7 @@
   let merging = false;
   let confirmingId = null;
   let pending = [];                // attachments for the next message
+  let startMode = "step";          // mode for the next new interview, set by the start buttons
 
   const currentChat = () => chats.find((c) => c.id === currentId) || null;
   const libraryCase = (code) => library.find((c) => c.code === code) || null;
@@ -704,7 +739,7 @@
   function saveChat(chat) {
     const body = {
       title: chat.title, createdAt: chat.createdAt, updatedAt: Date.now(), author: chat.author,
-      messages: chat.messages, contextMerged: false,
+      mode: chat.mode, messages: chat.messages, contextMerged: false,
     };
     chat.contextMerged = false;
     return persist(async () => {
@@ -829,6 +864,7 @@
     if (view === "case") renderCaseView();
     if (["ask", "chat", "context"].includes(view)) renderThread();
     updateComposer();
+    autosize();
     renderSidebar();
   }
 
@@ -933,7 +969,8 @@
     row.append(areaChip(c), el("span", "cc-code", c.code));
     head.append(row, el("h1", null, c.name));
     const meta = el("div", "detail-meta");
-    for (const [k, v] of [["Client", c.card.client], ["Industry", c.card.industry], ["Geography", c.card.geography], ["Period", c.card.period], ["Type", c.card.caseType]]) {
+    for (const [k, v] of [["Client", c.card.client], ["Industry", c.card.industry], ["Geography", c.card.geography], ["Period", c.card.period], ["Type", c.card.caseType],
+      ["Original files", c.sharepoint ? "linked in SharePoint" : ""]]) {
       if (!v) continue;
       const s = el("span");
       s.append(document.createTextNode(k + ": "), el("b", null, v));
@@ -1010,7 +1047,7 @@
     const n = chats.length;
     els.caseSummary.textContent = (n ? `${n} earlier interview${n === 1 ? "" : "s"}. ` : "No interviews yet. ") +
       (caseDoc.contextUpdatedAt ? `The case context was last updated on ${day(caseDoc.contextUpdatedAt)}. ` : "") +
-      "Brian asks how much time you have, then focuses on what you know that the files and earlier interviews don't.";
+      "Brian focuses on what you know that the files and earlier interviews don't. Choose how you want to be asked:";
   }
 
   function isNearBottom() {
@@ -1028,19 +1065,24 @@
     els.sendBtn.hidden = !!streaming;
     els.stopBtn.hidden = !streaming;
     els.input.disabled = sampleBlocked;
+    const batch = isBatch();
+    els.input.classList.toggle("batch", batch);
     els.input.placeholder = ask
       ? (view === "card" ? "Ask about this case…" : "Ask about past cases, or describe your new case…")
-      : "Message Brian…";
+      : (batch ? "Answer by number, in any order. Type or dictate…" : "Message Brian…");
     const ready = !!prompts && (ask ? libraryLoaded && library.length > 0 : !!caseDoc);
     const hasInput = !!els.input.value.trim() || (!ask && pending.length > 0);
     els.sendBtn.disabled = busy || sampleBlocked || !ready || uploading || !hasInput;
     els.startBtn.disabled = busy || sampleBlocked || !prompts;
+    els.startBatchBtn.disabled = busy || sampleBlocked || !prompts;
     els.attachBtn.hidden = ask || !assets;
     els.attachBtn.disabled = busy;
     els.suggestions.hidden = !(ask && view === "library" && libraryLoaded && library.length);
     els.composerNote.textContent = ask
       ? "Brian answers from the case contexts and files on file, with your own Claude account."
-      : "Brian answers with your own Claude account.";
+      : batch
+        ? "Dictate with Windows voice typing (Win+H), macOS dictation or your dictation tool. Enter adds a line; Ctrl+Enter sends."
+        : "Brian answers with your own Claude account.";
 
     const chat = !ask && view === "chat" ? currentChat() : null;
     const hasExchange = !!chat && chat.messages.some((m) => m.role === "assistant");
@@ -1068,9 +1110,15 @@
     }
   }
 
+  // Batch interviews take long, often dictated answers: a taller box, and Enter adds a line instead of sending.
+  function isBatch() {
+    return mode === "interview" && view === "chat" && currentChat()?.mode === "batch";
+  }
+
   function autosize() {
     els.input.style.height = "auto";
-    els.input.style.height = Math.min(els.input.scrollHeight, 200) + "px";
+    const max = isBatch() ? Math.round(window.innerHeight * 0.5) : 200;
+    els.input.style.height = Math.min(els.input.scrollHeight, max) + "px";
   }
 
   // ---------- Modes and navigation ----------
@@ -1131,7 +1179,86 @@
     return JSON.stringify(sortedLibrary().map((c) => ({
       code: c.code, name: c.name, ...c.card,
       interviewsMerged: c.merged, contextUpdated: c.contextUpdatedAt ? day(c.contextUpdatedAt) : "",
+      originalFilesInSharePoint: !!c.sharepoint,
     })));
+  }
+
+  // ---------- Ask: original files in SharePoint, through the viewer's Microsoft 365 connector ----------
+  function connectorProblem(e) {
+    switch (e && e.code) {
+      case "server_not_connected": return "The Microsoft 365 connector isn't connected for you. Add it in claude.ai Settings → Connectors to let Brian open original case files.";
+      case "needs_reauth": return "Your Microsoft 365 connector needs to be reconnected in claude.ai Settings → Connectors.";
+      case "selection_required": return "Choose which Microsoft 365 connector Brian should use when claude.ai asks.";
+      case "not_in_manifest":
+      case "approval_required": return "Brian isn't allowed to use your Microsoft 365 connector on this page.";
+      case "blocked_by_policy": return "Your organization's policy blocks Brian from reading SharePoint files.";
+      default: return "";
+    }
+  }
+
+  async function readSharePoint(uri, pages, signal) {
+    const key = `${uri}#${pages.startPage || ""}-${pages.endPage || ""}`;
+    if (spCache.has(key)) return spCache.get(key);
+    let result;
+    try {
+      result = await mcp.callTool(M365, "read_resource", { uri, ...pages }, { signal });
+    } catch (e) {
+      const problem = connectorProblem(e);
+      if (problem) { setBanner(problem); throw new Error(problem); }
+      if (e && e.code === "tool_error") throw new Error("SharePoint answered: " + String(e.message || "").slice(0, 400));
+      throw new Error("SharePoint couldn't be reached just now (" + (e && e.code || "error") + ").");
+    }
+    const text = (result.content || []).filter((b) => b && b.type === "text").map((b) => b.text).join("\n")
+      || (typeof result.payload === "string" ? result.payload : JSON.stringify(result.payload ?? ""));
+    spCache.set(key, text);
+    return text;
+  }
+
+  function sharePointTools(findCase, note, signal) {
+    const location = (c) => {
+      if (!c.sharepoint) throw new Error(`No SharePoint location is on file for ${c.code}, so its original files can't be opened. Use its context and file digests.`);
+      return c.sharepoint;
+    };
+    // Paths stay inside the case folder: empty, "." and ".." segments are dropped.
+    const clean = (p) => String(p || "").replace(/\\/g, "/").split("/").filter((s) => s && s !== "." && s !== "..").join("/");
+    return [
+      {
+        name: "open_sharepoint_file",
+        description: "Read an original file of one case from its SharePoint, as the person asking. path is relative to the case folder, as written in the context and digests (e.g. 04_Analyses/Savings_Baseline_v5.xlsx). Pages: Excel = one worksheet per page; PowerPoint, Word and PDF = document pages. Pass the pages the context or digest points to; without them, pages 1-5 are read. Returns {path, pages, text, nextOffset}; if nextOffset is not null, call again with that offset. A footer in the text says when more pages exist.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            code: { type: "string" }, path: { type: "string" },
+            startPage: { type: "integer" }, endPage: { type: "integer" }, offset: { type: "integer" },
+          },
+          required: ["code", "path"],
+        },
+        execute: async (input) => {
+          const c = findCase(input.code);
+          const sp = location(c);
+          const path = clean(input.path);
+          if (!path) throw new Error("Give the file's path relative to the case folder.");
+          const start = Math.max(1, Math.floor(Number(input.startPage) || 1));
+          const end = Math.max(start, Math.floor(Number(input.endPage) || start + 4));
+          note(`${path} (SharePoint, p. ${start}${end > start ? "–" + end : ""})`);
+          const text = await readSharePoint(`file:///${sp.driveId}/${sp.folderPath}/${path}`, { startPage: start, endPage: end }, signal);
+          return { path, pages: `${start}-${end}`, ...chunk(text, input.offset) };
+        },
+      },
+      {
+        name: "list_sharepoint_folder",
+        description: "List the files and subfolders of one case's SharePoint folder, or of a subfolder (path relative to the case folder; empty for the top). Use it when you don't know a file's exact path.",
+        inputSchema: { type: "object", properties: { code: { type: "string" }, folder: { type: "string" } }, required: ["code"] },
+        execute: async (input) => {
+          const c = findCase(input.code);
+          const sp = location(c);
+          const folder = clean(input.folder);
+          note(`SharePoint folder ${folder || c.code}`);
+          const text = await readSharePoint(`file:///${sp.driveId}/${sp.folderPath}${folder ? "/" + folder : ""}`, {}, signal);
+          return { folder: folder || "/", listing: text.replace(/\s*file:\/\/\/\S+/g, "\n").replace(/\n{2,}/g, "\n").trim().slice(0, TOOL_CHUNK) };
+        },
+      },
+    ];
   }
 
   async function caseFiles(code) {
@@ -1161,13 +1288,16 @@
     return { text: text.slice(start, end), nextOffset: end < text.length ? end : null };
   }
 
-  function askTools(note) {
+  const hasSharePoint = () => !!mcp && library.some((c) => c.sharepoint);
+
+  function askTools(note, signal) {
     const findCase = (raw) => {
       const c = libraryCase(normaliseCode(raw));
       if (!c) throw new Error(`No case with the code ${raw} is on file. Use a code from the case cards.`);
       return c;
     };
     return [
+      ...(hasSharePoint() ? sharePointTools(findCase, note, signal) : []),
       {
         name: "get_case_context",
         description: "Read the full case context (context.md) of one case on file: outcomes, lessons, documents, open questions with their status, gaps. Returns {code, text, nextOffset}; if nextOffset is not null, call again with that offset to read on. Read it before answering anything about a case beyond its card.",
@@ -1278,7 +1408,10 @@
         TODAY: day(Date.now()),
         FOCUS: focus ? `The person last opened the case ${focus.name} (${focus.code}). A question that names no case is probably about this one.` : "",
         TOOLS_NOTE: useTools
-          ? "Tools: get_case_context(code) reads a case's full context in parts; list_case_files(code) lists digests of its files and files attached in interviews; read_case_file(code, id) reads one. Read only what the question needs: usually one or a few contexts, and at most a few files."
+          ? "Tools: get_case_context(code) reads a case's full context in parts; list_case_files(code) lists digests of its files and files attached in interviews; read_case_file(code, id) reads one. Read only what the question needs: usually one or a few contexts, and at most a few files." +
+            (hasSharePoint()
+              ? "\nOriginal files: for cases whose card says originalFilesInSharePoint, open_sharepoint_file(code, path, startPage, endPage) reads the actual file from the case SharePoint, as the person asking, and list_sharepoint_folder(code, folder) lists a folder. Use them only when the context and digests don't answer the question, for example for detail behind a figure, a specific slide or a worksheet. Let the context and digests guide you to the right file and the right pages, slides or sheets, and read only those. Cite the file and the page or sheet, for example [DEMO-LIGHTHOUSE, file 07_Final_Report/Lighthouse_Final_Report_FINAL.pptx, p. 13]. If a file can't be opened (no access, not found, connector missing), say so and answer from what is on file."
+              : "")
           : "The contexts of the cases most likely to matter are included in <case_contexts>. You cannot open case files in this view; if the answer depends on one, name the file to look at.",
         CASE_CARDS: cardsJson(),
         CASE_CONTEXTS: block,
@@ -1296,7 +1429,7 @@
           scrollToBottom(false);
         },
       };
-      if (useTools) opts.tools = askTools(note);
+      if (useTools) opts.tools = askTools(note, controller.signal);
       const result = await sample([{ role: "user", content: rules }, ...turns], opts);
       reply = result.text;
     } catch (e) {
@@ -1413,6 +1546,7 @@
       CASE_CODE: caseCode,
       CASE_NAME: caseDoc.caseName || caseCode,
       INTERVIEW_NUMBER: chats.filter((c) => c.createdAt <= chat.createdAt).length,
+      MODE: MODE_TEXT[chat.mode] || MODE_TEXT.step,
       ELAPSED: elapsedText(chat),
       CASE_CONTEXT: caseDoc.context || "(empty: no interview has been merged yet)",
       OPEN_QUESTIONS: caseDoc.questions || "(no open questions file)",
@@ -1462,9 +1596,11 @@
     if (!chat) {
       const now = Date.now();
       chat = {
-        id: newId(), createdAt: now, author: uid || "", contextMerged: false, messages: [],
-        title: "Interview · " + new Date(now).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+        id: newId(), createdAt: now, author: uid || "", mode: startMode, contextMerged: false, messages: [],
+        title: (startMode === "batch" ? "All at once · " : "Interview · ") +
+          new Date(now).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
       };
+      startMode = "step";
       chats.push(chat);
       currentId = chat.id;
     }
@@ -1632,6 +1768,7 @@
       "Case: " + (caseDoc?.caseName || caseCode),
       "Interview: " + shortId(chat.id),
       "Interview started: " + stamp(chat.createdAt),
+      "Interview mode: " + (chat.mode === "batch" ? "all questions at once" : "step by step"),
       "Transcript saved: " + stamp(Date.now()),
       "Messages: " + chat.messages.length,
       "",
@@ -1716,12 +1853,16 @@
     else send();
   });
   els.input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); els.composer.requestSubmit(); }
+    if (e.key !== "Enter" || e.shiftKey || e.isComposing) return;
+    if (isBatch() && !(e.ctrlKey || e.metaKey)) return;   // a new line, so dictation can't send half an answer
+    e.preventDefault();
+    els.composer.requestSubmit();
   });
   els.input.addEventListener("input", () => { autosize(); updateComposer(); });
   els.stopBtn.addEventListener("click", () => { if (streaming) streaming.controller.abort(); });
   els.newChat.addEventListener("click", () => selectChat(null));
-  els.startBtn.addEventListener("click", () => { els.input.value = START_MESSAGE; send(); });
+  els.startBtn.addEventListener("click", () => { startMode = "step"; els.input.value = START_MESSAGE; send(); });
+  els.startBatchBtn.addEventListener("click", () => { startMode = "batch"; els.input.value = START_BATCH_MESSAGE; send(); });
   els.saveBtn.addEventListener("click", saveTranscript);
   els.finishBtn.addEventListener("click", finishChat);
   els.contextBtn.addEventListener("click", () => {
@@ -1758,6 +1899,7 @@
   });
   use("downloads").then((d) => { downloads = d; updateComposer(); });
   use("assets").then((a) => { assets = a; updateComposer(); });
+  use("mcp").then((m) => { mcp = m; });
   loadLibrary();
 })();
 </script>

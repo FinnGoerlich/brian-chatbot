@@ -42,6 +42,7 @@ def main():
         f"Interview: {id8}",
         f"Interviewee: {args.interviewee or 'Team member'}",
         f"Interview started: {stamp(created)}",
+        f"Interview mode: {'all questions at once' if chat.get('mode') == 'batch' else 'step by step'}",
         f"Transcript saved: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
         f"Messages: {len(messages)}",
         f"Merged into case context: {'yes, on ' + stamp(merged_at)[:10] if merged_at else 'no'}",
